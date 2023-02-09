@@ -53,8 +53,12 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "dj_rest_auth",
     "allauth",
-    "allauth.account"
+    "allauth.account",
     # "allauth.socialaccount" # Para implementar autenticación usando redes sociales
+
+    # My apps
+    "project"
+
 ]
 
 MIDDLEWARE = [

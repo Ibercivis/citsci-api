@@ -1,0 +1,176 @@
+[
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Agriculture & Veterinary science"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Animals"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Archaeology & Cultural"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Astronomy & Space"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Biodiversity"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Biogeography"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Biology"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Birds"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Chemical sciences"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Climate & Weather"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Ecology & Environment"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Education"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Food science"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Genetics"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Geography"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Geology & Earth science"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Health & Medicine"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Indigenous culture"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Information & Computing sciences"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Insects & pollinators"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Long-term species monitoring"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Ocean, Water, Marine & Terrestrial"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Nature & outdoors"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Natural resource management"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Physics"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Science policy"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Social sciences"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Sound"
+        }
+    },
+    {
+        "model": "project.topic",
+        "fields": {
+            "topic": "Transportation"
+        }
+    }
+]
