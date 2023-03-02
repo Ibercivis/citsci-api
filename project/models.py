@@ -18,7 +18,7 @@ class HasTag(models.Model):
 
 class Project(models.Model):
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
-    name = models.CharField(max_length=200)
-    description = models.CharField(max_length=200, blank=True)
+    name = models.CharField(max_length=200, blank=False)
+    description = models.CharField(max_length=200, blank=False)
     topic = models.ManyToManyField(Topic, blank=True)
     hasTag = models.ManyToManyField(HasTag, blank=True)

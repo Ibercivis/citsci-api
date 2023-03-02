@@ -1,6 +1,15 @@
 from rest_framework import serializers
+from rest_framework.authtoken.models import Token
 
+from django.contrib.auth.models import User
 from project.models import Project, Topic, HasTag
+
+class UserSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = ['id', 'username']
+        extra_kwargs = {'password': {'write_only': True, 'required': True}}
 
 class ProjectsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -30,18 +39,18 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = '__all__'
-        #read_only_fields = ('creator',)
-        #extra_kwargs = {
-        #    'creator': {'write_only': True}
-        #}
 
-    def create(self, validated_data):
+    def create(self, validated_data, *args, **kwargs):
         hasTag = validated_data.pop('hasTag')
         topic = validated_data.pop('topic')
+
         project = Project.objects.create(**validated_data)
-        project.hasTag.set(hasTag)
-        project.topic.set(topic)
+        for tag in hasTag:
+            project.hasTag.add(tag)
+        for topic in topic:
+            project.topic.add(topic)
         return project
+
 
     def update(self, instance, validated_data):
         hasTag = validated_data.pop('hasTag')
@@ -49,9 +58,12 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
         instance.name = validated_data.get('name', instance.name)
         instance.description = validated_data.get('description', instance.description)
         instance.save()
-        instance.hasTag.set(hasTag)
-        instance.topic.set(topic)
+        for tag in hasTag:
+            instance.hasTag.add(tag)
+        for topic in topic:
+            instance.topic.add(topic)
         return instance
+
 
 class ProjectSerializer(serializers.ModelSerializer):
     hasTag = HasTagSerializer(many=True)
@@ -60,5 +72,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = ['id', 'name', 'description', 'topic', 'hasTag']
+
+
 
         
