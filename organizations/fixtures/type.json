@@ -1,0 +1,38 @@
+[
+    {
+        "model": "organization.type",
+        "fields": {
+                        "type": "Gubernamental"
+        }
+    },
+    {
+        "model": "organization.type",
+        "fields": {
+                        "hasTag": "ONG"
+        }
+    },
+    {
+        "model": "organization.type",
+        "fields": {
+                        "hasTag": "Académica"
+        }
+    },
+    {
+        "model": "organization.type",
+        "fields": {
+                        "hasTag": "Sector privado"
+        }
+    },
+    {
+        "model": "organization.type",
+        "fields": {
+                        "hasTag": "Dirigido por la comunidad"
+        }
+    },
+    {
+        "model": "organization.type",
+        "fields": {
+                        "hasTag": "Consorcio"
+        }
+    }
+]

@@ -16,6 +16,7 @@ class HasTag(models.Model):
     def __str__(self):
         return f'{self.hasTag}'
 
+# Define el modelo Project que tiene un propietario, un nombre, una descripción y un topic (el hasTag creo que no tiene sentido)
 class Project(models.Model):
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=200, blank=False)
