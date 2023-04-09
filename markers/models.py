@@ -14,6 +14,6 @@ class Marker(models.Model):
 
 # Define el modelo Answer, que está asociado a un Marker y a una Question, y contiene un valor "value" de respuesta
 class Answer(models.Model):
-    marker = models.ForeignKey(Marker, on_delete=models.CASCADE)
+    marker = models.ForeignKey(Marker, related_name='answers', on_delete=models.CASCADE)
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     value = models.TextField()
