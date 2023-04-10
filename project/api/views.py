@@ -7,7 +7,7 @@ from rest_framework import generics
 from django.contrib.auth.models import User
 
 from project.models import Project, Topic, HasTag
-from project.api.serializers import ProjectsSerializer, TopicsSerializer, HasTagSerializer, ProjectSerializer, UserSerializer
+from project.api.serializers import ProjectsSerializer, ProjectSerializerCreateUpdate, TopicsSerializer, HasTagSerializer, ProjectSerializer, UserSerializer
 
 class UserViewSet(generics.ListAPIView):
     queryset = User.objects.all()
@@ -28,7 +28,7 @@ class TopicsViewSet(viewsets.ModelViewSet):
 class HasTagViewSet(viewsets.ModelViewSet):
     queryset = HasTag.objects.all()
     serializer_class = HasTagSerializer
-'''''
+
 # Método de Fran. TODO: ¿eliminarlo?
 
 class ProjectCreateViewSet(APIView):
@@ -40,7 +40,7 @@ class ProjectCreateViewSet(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-'''''    
+   
 class ProjectListCreate(generics.ListCreateAPIView):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
