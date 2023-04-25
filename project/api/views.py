@@ -43,7 +43,7 @@ class ProjectCreateViewSet(APIView):
    
 class ProjectListCreate(generics.ListCreateAPIView):
     queryset = Project.objects.all()
-    serializer_class = ProjectSerializer
+    serializer_class = ProjectSerializerCreateUpdate
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
