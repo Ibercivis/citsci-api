@@ -11,8 +11,9 @@ router.register(r'project/hastag', HasTagViewSet, basename='project-hastag')
 
 urlpatterns = [
     path('project/create/', ProjectCreateViewSet.as_view(), name='project-create'),
-    path('users/', UserViewSet.as_view(), name='users'),
-    path('users/<int:pk>/', UserViewSetDetail.as_view(), name='users-detail'),
+    # JORGE: Me he llevado estas rutas a la aplicación de usuarios
+    # path('users/', UserViewSet.as_view(), name='users'),
+    # path('users/<int:pk>/', UserViewSetDetail.as_view(), name='users-detail'),
 
     # Rutas añadidas por Jorge, pendiente de revisar las anteriores y eliminarlas si no se usan 
     # TODO: llevas la Gestión de usuarios a una aplicación aparte

@@ -20,9 +20,11 @@ from dj_rest_auth.views import PasswordResetConfirmView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path('api/registration/', include('dj_rest_auth.registration.urls')),
-    path('api/authentication/', include('dj_rest_auth.urls')),
-    path('api/authentication/password/reset/confirm/<str:uidb64>/<str:token>', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
+    # JORGE: Comento las urls de registro y autenticación de usuarios y me las llevo a la aplicación de usuarios
+    # path('api/registration/', include('dj_rest_auth.registration.urls')),
+    # path('api/authentication/', include('dj_rest_auth.urls')),
+    # path('api/authentication/password/reset/confirm/<str:uidb64>/<str:token>', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('api/', include('project.api.urls')),
     path('api/', include('field_forms.api.urls')),
+    path('api/', include('users.api.urls')),
 ]

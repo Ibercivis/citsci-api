@@ -59,7 +59,8 @@ INSTALLED_APPS = [
     "project",
     "organizations",
     "field_forms",
-    "markers"
+    "markers",
+    "users",
 
 ]
 
