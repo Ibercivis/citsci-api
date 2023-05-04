@@ -3,19 +3,12 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework import generics
+from rest_framework import permissions
 
 from django.contrib.auth.models import User
 
 from project.models import Project, Topic, HasTag
 from project.api.serializers import ProjectsSerializer, ProjectSerializerCreateUpdate, TopicsSerializer, HasTagSerializer, ProjectSerializer, UserSerializer
-
-class UserViewSet(generics.ListAPIView):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-
-class UserViewSetDetail(generics.RetrieveAPIView):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
 
 class ProjectsViewSet(viewsets.ModelViewSet):
     queryset = Project.objects.all()
@@ -30,6 +23,14 @@ class HasTagViewSet(viewsets.ModelViewSet):
     serializer_class = HasTagSerializer
 
 # Método de Fran. TODO: ¿eliminarlo?
+
+class IsCreatorOrAdminOrReadOnly(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        if request.method == 'DELETE':
+            return obj.creator == request.user
+        return obj.creator == request.user or request.user in obj.administrators.all()
 
 class ProjectCreateViewSet(APIView):
 
@@ -54,7 +55,8 @@ class ProjectListCreate(generics.ListCreateAPIView):
 
 class ProjectRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
     queryset = Project.objects.all()
-    serializer_class = ProjectSerializer
+    serializer_class = ProjectSerializerCreateUpdate
+    permission_classes = [IsCreatorOrAdminOrReadOnly]
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()

@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 
 # Create your models here.
 class Type(models.Model):
@@ -9,10 +10,13 @@ class Type(models.Model):
 
 class Organization(models.Model):
     principalName = models.CharField(max_length=50, blank=False)
-    url = models.CharField(max_length=50, blank=False)
-    description = models.CharField(max_length=200, blank=False)
-    type: models.ManyToManyField(Type, blank=True)
-    contactName = models.CharField(max_length=50, blank=False)
-    contactMail = models.CharField(max_length=50, blank=False)
-    logo = models.CharField(max_length=200, blank=False)
-    creditLogo = models.CharField(max_length=100, blank=False)
+    url = models.CharField(max_length=50, blank=True)
+    description = models.CharField(max_length=200, blank=True)
+    type = models.ManyToManyField(Type, blank=True)
+    contactName = models.CharField(max_length=50, blank=True)
+    contactMail = models.CharField(max_length=50, blank=True)
+    logo = models.CharField(max_length=200, blank=True)
+    creditLogo = models.CharField(max_length=100, blank=True)
+    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name="created_organizations", null=True, blank=True) # REVISAR EL NULL Y BLANK
+    administrators = models.ManyToManyField(User, related_name="admin_organizations", blank=True)
+    members = models.ManyToManyField(User, related_name="member_organizations", blank=True)

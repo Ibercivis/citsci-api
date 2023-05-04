@@ -1,38 +1,38 @@
 [
     {
-        "model": "organization.type",
+        "model": "organizations.type",
         "fields": {
                         "type": "Gubernamental"
         }
     },
     {
-        "model": "organization.type",
+        "model": "organizations.type",
         "fields": {
-                        "hasTag": "ONG"
+                        "type": "ONG"
         }
     },
     {
-        "model": "organization.type",
+        "model": "organizations.type",
         "fields": {
-                        "hasTag": "Académica"
+                        "type": "Académica"
         }
     },
     {
-        "model": "organization.type",
+        "model": "organizations.type",
         "fields": {
-                        "hasTag": "Sector privado"
+                        "type": "Sector privado"
         }
     },
     {
-        "model": "organization.type",
+        "model": "organizations.type",
         "fields": {
-                        "hasTag": "Dirigido por la comunidad"
+                        "type": "Dirigido por la comunidad"
         }
     },
     {
-        "model": "organization.type",
+        "model": "organizations.type",
         "fields": {
-                        "hasTag": "Consorcio"
+                        "type": "Consorcio"
         }
     }
 ]

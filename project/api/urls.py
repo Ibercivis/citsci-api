@@ -1,7 +1,7 @@
 from rest_framework import routers
 from django.urls import path
 from . import views
-from .views import ProjectsViewSet, TopicsViewSet, HasTagViewSet, ProjectCreateViewSet, UserViewSet, UserViewSetDetail
+from .views import ProjectsViewSet, TopicsViewSet, HasTagViewSet, ProjectCreateViewSet
 
 
 router = routers.SimpleRouter()
@@ -17,8 +17,8 @@ urlpatterns = [
 
     # Rutas añadidas por Jorge, pendiente de revisar las anteriores y eliminarlas si no se usan 
     # TODO: llevas la Gestión de usuarios a una aplicación aparte
-    path('projects/', views.ProjectListCreate.as_view(), name='project_list_create'),
-    path('projects/<int:pk>/', views.ProjectRetrieveUpdateDestroy.as_view(), name='project_retrieve_update_destroy'),
+    path('project/', views.ProjectListCreate.as_view(), name='project_list_create'),
+    path('project/<int:pk>/', views.ProjectRetrieveUpdateDestroy.as_view(), name='project_retrieve_update_destroy'),
 ]
 
 urlpatterns += router.urls

@@ -27,4 +27,5 @@ urlpatterns = [
     path('api/', include('project.api.urls')),
     path('api/', include('field_forms.api.urls')),
     path('api/', include('users.api.urls')),
+    path('api/', include('organizations.api.urls')),
 ]

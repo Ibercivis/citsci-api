@@ -1,13 +1,10 @@
 from rest_framework import routers
 from django.urls import path
-from .views import OrganizationViewSet, OrganizationViewSetDetail, OrganizationViewSetCreateUpdate, TypeViewSet, TypeViewSetDetail, TypeViewSetCreateUpdate
-
-router = routers.SimpleRouter()
-router.register(r'organizations', OrganizationViewSet, basename='organizations')
-router.register(r'organization/type', TypeViewSet, basename='organization-type')
+from .views import OrganizationViewSet, OrganizationDetailUpdateDelete, OrganizationCreateViewSet, TypeViewSet
 
 urlpatterns = [
-    path('organization/create/', OrganizationViewSetCreateUpdate.as_view(), name='organization-create'),
+    path('organization/create/', OrganizationCreateViewSet.as_view(), name='organization-create'),
+    path('organization/<int:pk>/', OrganizationDetailUpdateDelete.as_view(), name='organization-detail-update-delete'),
+    path('organization/', OrganizationViewSet.as_view(), name='organization-list'),
+    path('organization/type/', TypeViewSet.as_view(), name='organization-type-list'),
 ]
-
-urlpatterns += router.urls

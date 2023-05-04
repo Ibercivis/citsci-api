@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.contrib.auth.models import User
+from organizations.models import Organization
 
 # Create your models here.
 
@@ -19,7 +20,9 @@ class HasTag(models.Model):
 # Define el modelo Project que tiene un propietario, un nombre, una descripción y un topic (el hasTag creo que no tiene sentido)
 class Project(models.Model):
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
+    administrators = models.ManyToManyField(User, related_name='admin_projects')
     name = models.CharField(max_length=200, blank=False)
     description = models.CharField(max_length=200, blank=False)
     topic = models.ManyToManyField(Topic, blank=True)
     hasTag = models.ManyToManyField(HasTag, blank=True)
+    organizations = models.ManyToManyField(Organization, related_name='projects')

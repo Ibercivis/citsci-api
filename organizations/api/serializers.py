@@ -1,5 +1,7 @@
 from rest_framework import serializers
-from .models import Organization, Type
+from organizations.models import Organization, Type
+from django.contrib.auth.models import User
+from users.api.serializers import UserSerializer
 
 class TypeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -8,6 +10,9 @@ class TypeSerializer(serializers.ModelSerializer):
 
 class OrganizationSerializer(serializers.ModelSerializer):
     type = TypeSerializer(many=True, read_only=True)
+    creator = UserSerializer(read_only=True)
+    administrators = UserSerializer(many=True, read_only=True)
+    members = UserSerializer(many=True, read_only=True)
     class Meta:
         model = Organization
         fields = '__all__'
@@ -16,7 +21,18 @@ class OrganizationSerializerCreateUpdate(serializers.ModelSerializer):
     type = serializers.PrimaryKeyRelatedField(
         queryset=Type.objects.all(),
         many=True,
+        required=False)
+    creator = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(),
         required=True)
+    administrators = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(),
+        many=True,
+        required=False)
+    members = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(),
+        many=True,
+        required=False)
 
     class Meta:
         model = Organization
@@ -31,7 +47,11 @@ class OrganizationSerializerCreateUpdate(serializers.ModelSerializer):
         return organization
 
     def update(self, instance, validated_data):
-        type = validated_data.pop('type')
+        type = validated_data.pop('type', None) # Añade un valor predeterminado None
+        creator_data = validated_data.pop('creator', None)
+        administrators_data = validated_data.pop('administrators', None)
+        members_data = validated_data.pop('members', None)
+
         instance.principalName = validated_data.get('principalName', instance.principalName)
         instance.url = validated_data.get('url', instance.url)
         instance.description = validated_data.get('description', instance.description)
@@ -39,7 +59,21 @@ class OrganizationSerializerCreateUpdate(serializers.ModelSerializer):
         instance.contactMail = validated_data.get('contactMail', instance.contactMail)
         instance.logo = validated_data.get('logo', instance.logo)
         instance.creditLogo = validated_data.get('creditLogo', instance.creditLogo)
+        
+        #for type in type:
+        #    instance.type.add(type)
+        if type is not None:  # Solo actualiza el campo 'type' si está presente en la solicitud
+            instance.type.set(type)
+
+        if creator_data and self.context['request'].user == instance.creator:
+            instance.creator = creator_data
+
+        if administrators_data:
+            instance.administrators.set(administrators_data)
+
+        if members_data:
+            instance.members.set(members_data)
+    
         instance.save()
-        for type in type:
-            instance.type.add(type)
+        
         return instance
