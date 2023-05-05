@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 from django.contrib.auth.models import User
 from organizations.models import Organization
 
@@ -19,6 +20,8 @@ class HasTag(models.Model):
 
 # Define el modelo Project que tiene un propietario, un nombre, una descripción y un topic (el hasTag creo que no tiene sentido)
 class Project(models.Model):
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     administrators = models.ManyToManyField(User, related_name='admin_projects')
     name = models.CharField(max_length=200, blank=False)

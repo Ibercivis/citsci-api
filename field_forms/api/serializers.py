@@ -9,7 +9,7 @@ class QuestionSerializer(serializers.ModelSerializer):
                   'question_text', 'answer_type']
 
 class FieldFormSerializer(serializers.ModelSerializer):
-    questions = QuestionSerializer(many=True, read_only=True, source='question_set')
+    questions = QuestionSerializer(many=True, read_only=True, source='questions')
 
     class Meta:
         model = FieldForm
