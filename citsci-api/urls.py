@@ -16,6 +16,8 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from django.conf.urls import include
+from django.conf import settings # JORGE: Para poder servir los archivos multimedia
+from django.conf.urls.static import static # JORGE: Para poder servir los archivos multimedia
 from dj_rest_auth.views import PasswordResetConfirmView
 
 urlpatterns = [
@@ -28,4 +30,5 @@ urlpatterns = [
     path('api/', include('field_forms.api.urls')),
     path('api/', include('users.api.urls')),
     path('api/', include('organizations.api.urls')),
-]
+    path('api/', include('markers.api.urls')),
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -1,7 +1,6 @@
 from rest_framework import serializers
-from markers.models import Observation
-from field_form.models import FieldForm
-from django.core.files.images import get_image_dimensions
+from markers.models import Observation, ObservationImage
+from field_forms.models import FieldForm
 
 class DataFieldSerializer(serializers.JSONField):
     def to_internal_value(self, data):
@@ -33,10 +32,18 @@ class DataFieldSerializer(serializers.JSONField):
             else:
                 raise serializers.ValidationError("Tipo de respuesta no válido.")
         return data
+    
+class ObservationImageSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(max_length=None, use_url=True)
+
+    class Meta:
+        model = ObservationImage
+        fields = ['id', 'image', 'question']
 
 class ObservationSerializer(serializers.ModelSerializer):
     data = DataFieldSerializer()
+    images = ObservationImageSerializer(many=True, read_only=True)  # Inclusión de imágenes en la respuesta
 
     class Meta:
         model = Observation
-        fields = ['id', 'field_form', 'timestamp', 'geoposition', 'data', 'created_at', 'updated_at']
+        fields = ['id', 'creator', 'field_form', 'timestamp', 'geoposition', 'data', 'created_at', 'updated_at', 'images']
