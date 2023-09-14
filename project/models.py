@@ -29,3 +29,27 @@ class Project(models.Model):
     topic = models.ManyToManyField(Topic, blank=True)
     hasTag = models.ManyToManyField(HasTag, blank=True)
     organizations = models.ManyToManyField(Organization, related_name='projects')
+    likes = models.ManyToManyField(User, related_name='liked_projects', blank=True)
+
+    @property
+    def total_likes(self):
+        return self.likes.count()
+
+    def toggle_like(self, user):
+        if self.likes.filter(id=user.id).exists():
+            self.likes.remove(user)
+            return False  # False indica que el like fue removido
+        else:
+            self.likes.add(user)
+            return True  # True indica que el like fue añadido
+
+    def contributions(self):
+        # No añadimos contributions como un campo del modelo, por tanto no se guarda en la base de datos. Lo calculamos cada vez que se llama a este método.
+        # Intentamos obtener el formulario asociado con este proyecto.
+        try:
+            field_form = self.fieldform
+            # Devolvemos el número de observaciones asociadas con este formulario.
+            return field_form.observations.count()
+        except Project.fieldform.RelatedObjectDoesNotExist:
+            # Si no hay formulario asociado, devolvemos 0.
+            return 0

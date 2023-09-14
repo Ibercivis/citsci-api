@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from field_forms.models import FieldForm, Question
+from project.models import Project
 
 class QuestionSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
@@ -11,6 +12,7 @@ class QuestionSerializer(serializers.ModelSerializer):
 
 class FieldFormSerializer(serializers.ModelSerializer):
     questions = QuestionSerializer(many=True)
+    project = serializers.PrimaryKeyRelatedField(queryset=Project.objects.all(), required=False)
 
     class Meta:
         model = FieldForm

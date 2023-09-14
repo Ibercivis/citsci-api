@@ -32,7 +32,7 @@ SECRET_KEY = "django-insecure-!rihhd3lxg-!3x8+ea*3)n9ncc7%o6%v_#ben)rui-8+@+%h@o
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-ALLOWED_HOSTS = ['fran.ibercivis.es', 'jorge.ibercivis.es', 'localhost', '193.146.117.143']
+ALLOWED_HOSTS = ['dev.ibercivis.es']
 
 # Environment
 env = environ.Env()
@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     "dj_rest_auth",
     "allauth",
     "allauth.account",
+    "django_countries",
     # "allauth.socialaccount" # Para implementar autenticación usando redes sociales
 
     # My apps
@@ -65,7 +66,7 @@ INSTALLED_APPS = [
     "organizations",
     "field_forms",
     "markers",
-    "users",
+    "users.apps.UsersConfig",
 
 ]
 

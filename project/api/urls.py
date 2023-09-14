@@ -16,9 +16,10 @@ urlpatterns = [
     # path('users/<int:pk>/', UserViewSetDetail.as_view(), name='users-detail'),
 
     # Rutas añadidas por Jorge, pendiente de revisar las anteriores y eliminarlas si no se usan 
-    # TODO: llevas la Gestión de usuarios a una aplicación aparte
+    
     path('project/', views.ProjectListCreate.as_view(), name='project_list_create'),
     path('project/<int:pk>/', views.ProjectRetrieveUpdateDestroy.as_view(), name='project_retrieve_update_destroy'),
+    path('projects/<int:project_id>/toggle-like/', views.toggle_project_like, name='toggle_project_like'),
 ]
 
 urlpatterns += router.urls
