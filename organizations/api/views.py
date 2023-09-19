@@ -3,6 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework import generics
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import IsAuthenticated, BasePermission
 from rest_framework.permissions import SAFE_METHODS
 
@@ -23,7 +24,7 @@ class IsOrganizationCreatorOrAdmin(BasePermission):
 
 class OrganizationViewSet(generics.ListAPIView):
     queryset = Organization.objects.all()
-    serializer_class = OrganizationSerializer
+    serializer_class = OrganizationSerializerCreateUpdate
 
 class TypeViewSet(generics.ListAPIView):
     queryset = Type.objects.all()
@@ -31,6 +32,7 @@ class TypeViewSet(generics.ListAPIView):
 
 class OrganizationCreateViewSet(APIView):
     permission_classes = [IsAuthenticated]
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def post(self, request, format=None):
         serializer = OrganizationSerializerCreateUpdate(
@@ -44,3 +46,4 @@ class OrganizationDetailUpdateDelete(generics.RetrieveUpdateDestroyAPIView):
     queryset = Organization.objects.all()
     serializer_class = OrganizationSerializerCreateUpdate
     permission_classes = [IsAuthenticated, IsOrganizationCreatorOrAdmin]
+    parser_classes = (MultiPartParser, FormParser, JSONParser)

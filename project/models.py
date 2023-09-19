@@ -1,8 +1,10 @@
 from django.db import models
+from django.db.models import ImageField
 from django.conf import settings
 from django.utils import timezone
 from django.contrib.auth.models import User
 from organizations.models import Organization
+
 
 # Create your models here.
 
@@ -53,3 +55,11 @@ class Project(models.Model):
         except Project.fieldform.RelatedObjectDoesNotExist:
             # Si no hay formulario asociado, devolvemos 0.
             return 0
+
+# Modelo para asociar imágenes a un proyecto (Covers para el frontend)       
+class ProjectCover(models.Model):
+    project = models.ForeignKey(Project, related_name="covers", on_delete=models.CASCADE)
+    image = models.ImageField(upload_to='projects/covers/', null=True, blank=True)
+
+    def __str__(self):
+        return f"Cover for {self.project.name}"

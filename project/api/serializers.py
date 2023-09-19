@@ -2,7 +2,7 @@ from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 
 from django.contrib.auth.models import User
-from project.models import Project, Topic, HasTag
+from project.models import Project, Topic, HasTag, ProjectCover
 from organizations.models import Organization
 from organizations.api.serializers import OrganizationSerializer
 from field_forms.models import FieldForm, Question
@@ -36,6 +36,11 @@ class HasTagSerializer(serializers.ModelSerializer):
         model = HasTag
         fields = '__all__'
 
+class ProjectCoverSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProjectCover
+        fields = ['image']
+
 class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
     hasTag = serializers.PrimaryKeyRelatedField(
         queryset=HasTag.objects.all(),
@@ -45,6 +50,7 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
         queryset=Topic.objects.all(),
         many=True,
         required=False)
+    cover = ProjectCoverSerializer(required=False)
     organizations = OrganizationSummarySerializer(many=True, read_only=True)
     organizations_write = serializers.PrimaryKeyRelatedField(
         source='organizations',  # Asignamos el comportamiento de escritura al campo real 'organizations'
@@ -62,6 +68,7 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
         required=False)
     contributions = serializers.IntegerField(read_only=True)
     total_likes = serializers.IntegerField(read_only=True)
+    is_liked_by_user = serializers.SerializerMethodField()
 
     #NUEVALINEA (Si funciona la creación simultánea de Field_forms y Questions, borramos el comentario)
     field_form = FieldFormSerializer(required=False)
@@ -69,12 +76,20 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
 
     class Meta:
         model = Project
-        fields = ['id', 'name', 'description', 'created_at', 'updated_at', 'topic', 'hasTag', 'contributions', 'total_likes', 'organizations', 'organizations_write', 'creator', 'administrators', 'field_form']
+        fields = ['id', 'name', 'description', 'created_at', 'updated_at', 'topic', 'hasTag', 'cover', 'contributions', 'total_likes', 'is_liked_by_user', 'organizations', 'organizations_write', 'creator', 'administrators', 'field_form']
 
+    # Este método verifica si el usuario actual ha dado "like" al proyecto. Utiliza el context del serializador para obtener el usuario actual.
+    def get_is_liked_by_user(self, obj):
+        user = self.context.get('user')
+        if user and user.is_authenticated:
+            return obj.likes.filter(id=user.id).exists()
+        return False
+    
     # Este método nos permite personalizar la representación de las organizaciones para operaciones de lectura
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         representation['organizations'] = OrganizationSummarySerializer(instance.organizations.all(), many=True).data
+        representation['cover'] = ProjectCoverSerializer(instance.covers.all(), many=True).data
         return representation
     
     def create(self, validated_data, *args, **kwargs):
@@ -82,6 +97,7 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
         topic = validated_data.pop('topic', [])
         administrators = validated_data.pop('administrators', [])
         organizations_write = validated_data.pop('organizations', [])
+        covers_files = self.context['request'].FILES.getlist('cover')
         #NUEVALINEA (Si funciona la creación simultánea de Field_forms y Questions, borramos el comentario)
         field_form_data = validated_data.pop('field_form', None)
 
@@ -92,6 +108,8 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
             project.topic.add(topic)
         project.organizations.set(organizations_write)
         project.administrators.set(administrators)
+        for cover_file in covers_files:
+            ProjectCover.objects.create(project=project, image=cover_file)
         project.save()
         #NUEVALINEA (Si funciona la creación simultánea de Field_forms y Questions, borramos el comentario)
         if field_form_data:
@@ -111,6 +129,7 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
         creator = validated_data.pop('creator', None)
         administrators = validated_data.pop('administrators', [])
         organizations_write = validated_data.pop('organizations', [])
+        covers_files = self.context['request'].FILES.getlist('cover')
         instance.name = validated_data.get('name', instance.name)
         instance.description = validated_data.get('description', instance.description)
         for tag in hasTag:
@@ -127,6 +146,14 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
 
         if organizations_write:
             instance.organizations.set(organizations_write)
+        
+        if covers_files:
+            # Borramos las portadas anteriores
+            instance.covers.all().delete()
+            # Creamos las nuevas portadas
+            for cover_file in covers_files:
+                ProjectCover.objects.create(project=instance, image=cover_file)
+
         #instance.organizations.set(organizations)
         #instance.administrators.set(administrators)
         #if 'creator' in validated_data and validated_data['creator'] != instance.creator:

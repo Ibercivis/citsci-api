@@ -6,6 +6,7 @@ from rest_framework import generics
 from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from django.contrib.auth.models import User
 
@@ -35,10 +36,12 @@ class IsCreatorOrAdminOrReadOnly(permissions.BasePermission):
         return obj.creator == request.user or request.user in obj.administrators.all()
 
 class ProjectCreateViewSet(APIView):
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def post(self, request, format=None):
+        print(request.data)
         serializer = ProjectSerializerCreateUpdate(
-            data=request.data)
+            data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -47,6 +50,10 @@ class ProjectCreateViewSet(APIView):
 class ProjectListCreate(generics.ListCreateAPIView):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializerCreateUpdate
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
+
+    def get_serializer_context(self):
+        return {'user': self.request.user}
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -59,6 +66,7 @@ class ProjectRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializerCreateUpdate
     permission_classes = [IsCreatorOrAdminOrReadOnly]
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
