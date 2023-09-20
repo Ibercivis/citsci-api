@@ -81,6 +81,23 @@ class ProjectRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     
+class ValidateProjectPasswordView(APIView):
+    
+    def post(self, request, project_id):
+        try:
+            project = Project.objects.get(pk=project_id)
+        except Project.DoesNotExist:
+            return Response({'detail': 'Proyecto no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        password = request.data.get('password')
+        if not password:
+            return Response({'detail': 'Contraseña no proporcionada.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if project.check_password(password):
+            return Response({'valid': True}, status=status.HTTP_200_OK)
+        else:
+            return Response({'valid': False, 'detail': 'Contraseña incorrecta.'}, status=status.HTTP_400_BAD_REQUEST)
+    
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def toggle_project_like(request, project_id):
@@ -92,3 +109,4 @@ def toggle_project_like(request, project_id):
     was_liked = project.toggle_like(request.user)
     action = "added" if was_liked else "removed"
     return Response({"message": f"Like {action} successfully", "total_likes": project.total_likes})
+

@@ -23,3 +23,4 @@ class Question(models.Model):
     field_form = models.ForeignKey(FieldForm, related_name='questions', on_delete=models.CASCADE)
     question_text = models.CharField(max_length=200)
     answer_type = models.CharField(max_length=4, choices=QUESTION_TYPES)
+    mandatory = models.BooleanField(default=False)

@@ -69,6 +69,9 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
     contributions = serializers.IntegerField(read_only=True)
     total_likes = serializers.IntegerField(read_only=True)
     is_liked_by_user = serializers.SerializerMethodField()
+    is_private = serializers.BooleanField(required=False, default=False)
+    raw_password = serializers.CharField(write_only=True, required=False, allow_blank=True, source="password")  # Usamos un campo virtual para la contraseña en texto plano.
+
 
     #NUEVALINEA (Si funciona la creación simultánea de Field_forms y Questions, borramos el comentario)
     field_form = FieldFormSerializer(required=False)
@@ -76,9 +79,14 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
 
     class Meta:
         model = Project
-        fields = ['id', 'name', 'description', 'created_at', 'updated_at', 'topic', 'hasTag', 'cover', 'contributions', 'total_likes', 'is_liked_by_user', 'organizations', 'organizations_write', 'creator', 'administrators', 'field_form']
+        fields = ['id', 'name', 'description', 'created_at', 'updated_at', 'topic', 'hasTag', 'cover', 'contributions', 'total_likes', 'is_liked_by_user', 'organizations', 'organizations_write', 'creator', 'administrators', 'is_private', 'raw_password', 'field_form']
 
-    # Este método verifica si el usuario actual ha dado "like" al proyecto. Utiliza el context del serializador para obtener el usuario actual.
+    def validate(self, data):
+        if data.get("is_private") and not data.get("password"):
+            raise serializers.ValidationError("Debe proporcionar una contraseña si el proyecto es privado.")
+        return data
+   
+   # Este método verifica si el usuario actual ha dado "like" al proyecto. Utiliza el context del serializador para obtener el usuario actual.
     def get_is_liked_by_user(self, obj):
         user = self.context.get('user')
         if user and user.is_authenticated:
@@ -111,7 +119,12 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
         for cover_file in covers_files:
             ProjectCover.objects.create(project=project, image=cover_file)
         project.save()
-        #NUEVALINEA (Si funciona la creación simultánea de Field_forms y Questions, borramos el comentario)
+        
+        if "password" in validated_data:
+            password = validated_data.pop('password')
+            project.set_password(password)
+            project.save()
+
         if field_form_data:
             # Crea el FieldForm asociado
             field_form = FieldForm.objects.create(project=project)
@@ -146,6 +159,10 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
 
         if organizations_write:
             instance.organizations.set(organizations_write)
+
+        if "password" in validated_data:
+            password = validated_data.pop('password')
+            instance.set_password(password)
         
         if covers_files:
             # Borramos las portadas anteriores

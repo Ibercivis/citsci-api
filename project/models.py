@@ -2,6 +2,7 @@ from django.db import models
 from django.db.models import ImageField
 from django.conf import settings
 from django.utils import timezone
+from django.contrib.auth.hashers import make_password, check_password
 from django.contrib.auth.models import User
 from organizations.models import Organization
 
@@ -30,12 +31,26 @@ class Project(models.Model):
     description = models.CharField(max_length=200, blank=False)
     topic = models.ManyToManyField(Topic, blank=True)
     hasTag = models.ManyToManyField(HasTag, blank=True)
+    is_private = models.BooleanField(default=False)
+    password = models.CharField(max_length=128, blank=True, null=True)
     organizations = models.ManyToManyField(Organization, related_name='projects')
     likes = models.ManyToManyField(User, related_name='liked_projects', blank=True)
 
     @property
     def total_likes(self):
         return self.likes.count()
+    
+    @property
+    def password(self):
+        raise AttributeError("No se puede leer el atributo password directamente")
+
+    @password.setter
+    def set_password(self, raw_password):
+        self.password = make_password(raw_password)
+
+    def check_password(self, raw_password):
+        return check_password(raw_password, self.password)
+
 
     def toggle_like(self, user):
         if self.likes.filter(id=user.id).exists():
