@@ -32,7 +32,7 @@ class Project(models.Model):
     topic = models.ManyToManyField(Topic, blank=True)
     hasTag = models.ManyToManyField(HasTag, blank=True)
     is_private = models.BooleanField(default=False)
-    password = models.CharField(max_length=128, blank=True, null=True)
+    _password = models.CharField(max_length=128, blank=True, null=True)
     organizations = models.ManyToManyField(Organization, related_name='projects')
     likes = models.ManyToManyField(User, related_name='liked_projects', blank=True)
 
@@ -45,11 +45,11 @@ class Project(models.Model):
         raise AttributeError("No se puede leer el atributo password directamente")
 
     @password.setter
-    def set_password(self, raw_password):
-        self.password = make_password(raw_password)
+    def password(self, raw_password):
+        self._password = make_password(raw_password)
 
     def check_password(self, raw_password):
-        return check_password(raw_password, self.password)
+        return check_password(raw_password, self._password)
 
 
     def toggle_like(self, user):

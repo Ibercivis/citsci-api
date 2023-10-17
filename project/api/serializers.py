@@ -122,7 +122,7 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
         
         if "password" in validated_data:
             password = validated_data.pop('password')
-            project.set_password(password)
+            project.password = password # Usamos el setter de la propiedad password para almacenar la contraseña encriptada
             project.save()
 
         if field_form_data:
@@ -162,7 +162,7 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
 
         if "password" in validated_data:
             password = validated_data.pop('password')
-            instance.set_password(password)
+            instance.password = password
         
         if covers_files:
             # Borramos las portadas anteriores

@@ -101,12 +101,11 @@ class ValidateProjectPasswordView(APIView):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def toggle_project_like(request, project_id):
-    try:
-        project = Project.objects.get(id=project_id)
-    except Project.DoesNotExist:
-        return Response({"error": "Project not found"}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            project = Project.objects.get(id=project_id)
+        except Project.DoesNotExist:
+            return Response({"error": "Project not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    was_liked = project.toggle_like(request.user)
-    action = "added" if was_liked else "removed"
-    return Response({"message": f"Like {action} successfully", "total_likes": project.total_likes})
-
+        was_liked = project.toggle_like(request.user)
+        action = "added" if was_liked else "removed"
+        return Response({"message": f"Like {action} successfully", "total_likes": project.total_likes})

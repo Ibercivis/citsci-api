@@ -1,4 +1,6 @@
-import json
+import json, csv
+from django.http import HttpResponse
+from rest_framework.views import View
 from rest_framework.permissions import IsAuthenticated
 from django.core.exceptions import ValidationError
 from rest_framework import generics, status
@@ -24,7 +26,7 @@ class ObservationListCreate(generics.ListCreateAPIView):
         except FieldForm.DoesNotExist:
             return Response({"error": f"No existe un formulario de campo con id {field_form_id}."}, status=status.HTTP_400_BAD_REQUEST)
 
-        print("request.FILES:", request.FILES) #Verificar que se reciben las imágenes
+        print("Llamada:", request.data) #Verificar que se reciben las imágenes
         data = request.data.get("data", {})
 
         # Intentar parsear data a un diccionario si es una cadena de texto
@@ -67,7 +69,7 @@ class ObservationListCreate(generics.ListCreateAPIView):
             except ValidationError as e:
                 return Response({"error": f"Error al guardar la imagen para la pregunta {question_id}: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = self.get_serializer(observation)
+        serializer = self.get_serializer(observation, context={"field_form": field_form})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
 class ObservationRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
@@ -100,3 +102,22 @@ class ObservationByFieldFormList(generics.ListAPIView):
         """
         field_form_id = self.kwargs['field_form_id']
         return Observation.objects.filter(field_form__id=field_form_id)
+    
+class DownloadObservationsCSV(View):
+    def get(self, request, *args, **kwargs):
+        project_id = self.kwargs.get("project_id")
+
+        # Filtramos las observaciones por el field_form asociado al proyecto dado
+        observations = Observation.objects.filter(field_form__project__id=project_id)
+
+        # Preparamos la respuesta
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="project_{project_id}_observations.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(['ID', 'Creator', 'Timestamp', 'Geoposition', 'Data'])  # header
+
+        for observation in observations:
+            writer.writerow([observation.id, observation.creator, observation.timestamp, observation.geoposition, observation.data])
+
+        return response

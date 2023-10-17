@@ -8,6 +8,13 @@ class DataFieldSerializer(serializers.JSONField):
         if not field_form:
             raise serializers.ValidationError("No se pudo encontrar la FieldForm relacionada.")
         
+        # Validar que se hayan respondido todas las preguntas obligatorias
+        mandatory_questions = field_form.questions.filter(mandatory=True)
+        for question in mandatory_questions:
+            if str(question.id) not in data:
+                raise serializers.ValidationError(f"La pregunta {question} es obligatoria y no ha sido respondida.")
+
+        
         # Validar los datos en función del tipo de respuesta
         for question, answer in data.items():
             question_obj = field_form.questions.get(pk=question)
