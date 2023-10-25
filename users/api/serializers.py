@@ -5,6 +5,7 @@ from organizations.models import Organization
 from markers.models import Observation
 from project.models import Project
 from django_countries.fields import Country
+from django_countries import countries
 
 class ProjectSummarySerializer(serializers.ModelSerializer):
     class Meta:
@@ -17,11 +18,23 @@ class OrganizationSummarySerializer(serializers.ModelSerializer):
         fields = ['id', 'principalName']
 
 class CustomCountryFieldSerializer(serializers.Field):
-    def to_representation(self, obj):
-            # Aquí serializamos el campo `country` para obtener el código del país.
-            if isinstance(obj, Country):
-                return obj.name
-            return obj  # Devuelve tal cual si no es una instancia de Country
+    def to_representation(self, value):
+        country_code = str(value)  # Convertir el valor directamente a un string.
+        country_name = dict(countries).get(country_code, country_code)
+        return {
+            "code": country_code,
+            "name": country_name
+        }
+    
+    def to_internal_value(self, data):
+        # Aquí, data es el valor proporcionado en la solicitud (por ejemplo, "US" para Estados Unidos).
+        # Este valor se convierte en el formato de `django-countries`.
+        try:
+            country = Country(data)  # Esto crea un objeto Country a partir del código de país.
+        except Exception as e:
+            raise serializers.ValidationError("Código de país no válido.")
+        
+        return country.code  # Devuelve el código de país para guardarlo en la base de datos.
 
 class ProfileSerializer(serializers.ModelSerializer):
     created_organizations = OrganizationSummarySerializer(many=True, read_only=True)

@@ -39,12 +39,13 @@ class ProjectCreateViewSet(APIView):
     parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def post(self, request, format=None):
-        print(request.data)
+        print("Contenido que entra desde frontend para crear proyecto:",request.data)
         serializer = ProjectSerializerCreateUpdate(
             data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+        print(serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
    
 class ProjectListCreate(generics.ListCreateAPIView):

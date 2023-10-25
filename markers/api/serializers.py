@@ -4,36 +4,47 @@ from field_forms.models import FieldForm
 
 class DataFieldSerializer(serializers.JSONField):
     def to_internal_value(self, data):
+        data = super().to_internal_value(data)
+
+        # Asegurar que los datos tienen la estructura correcta
+        if not isinstance(data, list):
+            raise serializers.ValidationError("La estructura de datos no es una lista.")
+        elif not all(['key' in item and 'value' in item for item in data]):
+            raise serializers.ValidationError("La estructura de datos no tiene las claves 'key' y 'value'.")
+        
         field_form = self.context.get("field_form", None)
         if not field_form:
             raise serializers.ValidationError("No se pudo encontrar la FieldForm relacionada.")
         
+        # Convertir data a un diccionario para facilitar la validación
+        data_dict = {item["key"]: item["value"] for item in data}
+
         # Validar que se hayan respondido todas las preguntas obligatorias
         mandatory_questions = field_form.questions.filter(mandatory=True)
         for question in mandatory_questions:
-            if str(question.id) not in data:
+            if str(question.id) not in data_dict:
                 raise serializers.ValidationError(f"La pregunta {question} es obligatoria y no ha sido respondida.")
-
         
         # Validar los datos en función del tipo de respuesta
-        for question, answer in data.items():
-            question_obj = field_form.questions.get(pk=question)
-            if question_obj.response_type == "DATE":
+        for key, value in data_dict.items():
+            question_obj = field_form.questions.get(pk=key)
+            print(f"Question ID: {key}, Answer Type: {question_obj.answer_type}, Value: {value}")  # DEBUG
+            if question_obj.answer_type == "DATE":
                 try:
-                    serializers.DateField().to_internal_value(answer)
+                    serializers.DateField().to_internal_value(value)
                 except serializers.ValidationError:
                     raise serializers.ValidationError(f"La respuesta para la pregunta {question} debe ser una fecha válida.")
-            elif question_obj.response_type == "NUMBER":
+            elif question_obj.answer_type == "NUMBER" or question_obj.answer_type == "NUM":
                 try:
-                    serializers.DecimalField(max_digits=20, decimal_places=2).to_internal_value(answer)
+                    serializers.DecimalField(max_digits=20, decimal_places=2).to_internal_value(value)
                 except serializers.ValidationError:
                     raise serializers.ValidationError(f"La respuesta para la pregunta {question} debe ser un número válido.")
-            elif question_obj.response_type == "STRING":
+            elif question_obj.answer_type == "STRING" or question_obj.answer_type == "STR":
                 try:
-                    serializers.CharField().to_internal_value(answer)
+                    serializers.CharField().to_internal_value(value)
                 except serializers.ValidationError:
                     raise serializers.ValidationError(f"La respuesta para la pregunta {question} debe ser un string válida.")
-            elif question_obj.response_type == "IMAGE":
+            elif question_obj.answer_type == "IMAGE" or question_obj.answer_type == "IMG":
                 # La validación de las imágenes se realizará en la vista
                 pass
             else:

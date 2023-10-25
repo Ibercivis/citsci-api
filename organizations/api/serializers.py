@@ -40,6 +40,17 @@ class OrganizationSerializerCreateUpdate(serializers.ModelSerializer):
         model = Organization
         fields = '__all__'
 
+    def to_internal_value(self, data):
+        # Limpia 'administrators' y 'members' si contienen cadenas vacías
+        data = super().to_internal_value(data)
+        for key in ['administrators', 'members']:
+            if key in data and not isinstance(data[key], list):
+                if data[key]:
+                    data[key] = [data[key]]
+                else:
+                    data[key] = []
+        return data
+
     def create(self, validated_data, *args, **kwargs):
         type = validated_data.pop('type')
         administrators_data = validated_data.pop('administrators', [])
