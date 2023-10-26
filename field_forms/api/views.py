@@ -8,6 +8,7 @@ class FieldFormListCreate(generics.ListCreateAPIView):
     serializer_class = FieldFormSerializer
 
     def create(self, request, *args, **kwargs):
+        print("LLamada al crear una field form", request.data)
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -19,6 +20,7 @@ class FieldFormRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = FieldFormSerializer
 
     def update(self, request, *args, **kwargs):
+        print("LLamada al editar una field form", request.data)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         if serializer.is_valid():

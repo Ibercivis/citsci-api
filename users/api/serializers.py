@@ -44,10 +44,11 @@ class ProfileSerializer(serializers.ModelSerializer):
     created_projects = serializers.SerializerMethodField()
     liked_projects = serializers.SerializerMethodField()
     country = CustomCountryFieldSerializer()
+    cover = serializers.ImageField(required=False)
 
     class Meta:
         model = Profile
-        fields = ['biography', 'visibility', 'country', 'created_organizations', 'admin_organizations', 'member_organizations', 'participated_projects', 'created_projects', 'liked_projects']
+        fields = ['biography', 'visibility', 'country', 'cover', 'created_organizations', 'admin_organizations', 'member_organizations', 'participated_projects', 'created_projects', 'liked_projects']
 
     def get_participated_projects(self, obj):
         # Aquí, 'obj' es una instancia de Profile, pero como Profile está relacionado

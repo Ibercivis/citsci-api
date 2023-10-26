@@ -9,6 +9,7 @@ class Profile(models.Model):
     biography = models.TextField(blank=True, null=True)
     visibility = models.BooleanField(default=True)
     country = CountryField()  # Empleamos la librería `django-countries`.
+    cover = models.ImageField(upload_to='users/covers/', null=True, blank=True)
 
     def __str__(self):
         return self.user.username

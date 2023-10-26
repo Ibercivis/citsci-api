@@ -8,6 +8,7 @@ from django.contrib.auth.models import User
 from users.api.serializers import UserSerializer
 from users.models import Profile
 from users.api.serializers import ProfileSerializer
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 class UserViewSet(generics.ListAPIView):
     queryset = User.objects.all()
@@ -31,6 +32,7 @@ class CountryListView(APIView):
 class UserProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = ProfileSerializer
     permission_classes = [permissions.IsAuthenticated]  # asegura que el usuario esté autenticado
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def get_object(self):
         # Obtiene el perfil del usuario actual
@@ -42,5 +44,6 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
 
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            return Response(serializer.data, status=200)
+        print(serializer.errors)
         return Response(serializer.errors, status=400)

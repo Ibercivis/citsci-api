@@ -137,17 +137,22 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         user = self.context['request'].user
-        hasTag = validated_data.pop('hasTag', [])
-        topic = validated_data.pop('topic', [])
+        new_hasTag = validated_data.pop('hasTag', [])
+        new_topic = validated_data.pop('topic', [])
         creator = validated_data.pop('creator', None)
         administrators = validated_data.pop('administrators', [])
         organizations_write = validated_data.pop('organizations', [])
         covers_files = self.context['request'].FILES.getlist('cover')
         instance.name = validated_data.get('name', instance.name)
         instance.description = validated_data.get('description', instance.description)
-        for tag in hasTag:
+
+        # Eliminar los temas y etiquetas existentes
+        instance.hasTag.clear()
+        instance.topic.clear()
+        # Añadir los nuevos temas y etiquetas proporcionados en la llamada PATCH
+        for tag in new_hasTag:
             instance.hasTag.add(tag)
-        for topic in topic:
+        for topic in new_topic:
             instance.topic.add(topic)
         if creator:
             if user == instance.creator:
@@ -191,7 +196,3 @@ class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = ['id', 'name', 'description', 'created_at', 'updated_at', 'topic', 'hasTag', 'contributions', 'total_likes', 'organizations', 'creator', 'administrators']
-
-
-
-        

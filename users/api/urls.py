@@ -1,7 +1,8 @@
 from django.urls import path
 from django.conf.urls import include
 #from dj_rest_auth.views import PasswordResetConfirmView
-
+from django.conf import settings
+from django.conf.urls.static import static
 from users.api.views import UserViewSet, UserViewSetDetail, UserProfileView, CountryListView, VisibleUsersListView
 
 urlpatterns = [
@@ -14,4 +15,4 @@ urlpatterns = [
     path('users/profile/', UserProfileView.as_view(), name='user-profile'),
     path('users/list/', VisibleUsersListView.as_view(), name='user-list-visible'),
     path('users/countries/', CountryListView.as_view(), name='countries-list'),
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
