@@ -1,12 +1,13 @@
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
-
 from django.contrib.auth.models import User
 from project.models import Project, Topic, HasTag, ProjectCover
 from organizations.models import Organization
 from organizations.api.serializers import OrganizationSerializer
 from field_forms.models import FieldForm, Question
 from field_forms.api.serializers import FieldFormSerializer, QuestionSerializer
+
+import json
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -37,6 +38,8 @@ class HasTagSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class ProjectCoverSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(use_url=True)
+
     class Meta:
         model = ProjectCover
         fields = ['image']
@@ -82,6 +85,7 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
         fields = ['id', 'name', 'description', 'created_at', 'updated_at', 'topic', 'hasTag', 'cover', 'contributions', 'total_likes', 'is_liked_by_user', 'organizations', 'organizations_write', 'creator', 'administrators', 'is_private', 'raw_password', 'field_form']
 
     def validate(self, data):
+        print("Contenido a validar del frontend:", data)
         if data.get("is_private") and not data.get("password"):
             raise serializers.ValidationError("Debe proporcionar una contraseña si el proyecto es privado.")
         return data
@@ -101,11 +105,12 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
         return representation
     
     def create(self, validated_data, *args, **kwargs):
+        print("Contenido validado del frontend para crear proyecto:",validated_data)
         hasTag = validated_data.pop('hasTag', [])
         topic = validated_data.pop('topic', [])
         administrators = validated_data.pop('administrators', [])
         organizations_write = validated_data.pop('organizations', [])
-        covers_files = self.context['request'].FILES.getlist('cover')
+        cover_file = validated_data.pop('cover', None)
         #NUEVALINEA (Si funciona la creación simultánea de Field_forms y Questions, borramos el comentario)
         field_form_data = validated_data.pop('field_form', None)
 
@@ -116,8 +121,10 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
             project.topic.add(topic)
         project.organizations.set(organizations_write)
         project.administrators.set(administrators)
-        for cover_file in covers_files:
-            ProjectCover.objects.create(project=project, image=cover_file)
+
+        if cover_file:
+            cover = self.context['request'].FILES.get('cover')
+            ProjectCover.objects.create(project=project, image=cover)
         project.save()
         
         if "password" in validated_data:
@@ -126,9 +133,19 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
             project.save()
 
         if field_form_data:
+            print("Entra en field_form_data: ", field_form_data)
+            # Asegurarse de que field_form_data es un diccionario
+            if isinstance(field_form_data, str):
+                print("Es un string")
+                try:
+                    field_form_data = json.loads(field_form_data)
+                except json.JSONDecodeError:
+                    raise serializers.ValidationError({'field_form': ['Datos JSON inválidos.'] })
             # Crea el FieldForm asociado
             field_form = FieldForm.objects.create(project=project)
+            print("FieldForm creado: ", field_form)
             for question_data in field_form_data.get('questions', []):
+                print("Preguntas asociadas: ", question_data)
                 Question.objects.create(field_form=field_form, **question_data)
             
             field_form.save()
@@ -142,9 +159,10 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
         creator = validated_data.pop('creator', None)
         administrators = validated_data.pop('administrators', [])
         organizations_write = validated_data.pop('organizations', [])
-        covers_files = self.context['request'].FILES.getlist('cover')
+        cover_file = self.context['request'].FILES.get('cover')
         instance.name = validated_data.get('name', instance.name)
         instance.description = validated_data.get('description', instance.description)
+        instance.is_private = validated_data.get('is_private', instance.is_private)
 
         # Eliminar los temas y etiquetas existentes
         instance.hasTag.clear()
@@ -168,13 +186,14 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
         if "password" in validated_data:
             password = validated_data.pop('password')
             instance.password = password
+            instance.save()
         
-        if covers_files:
+        if cover_file:
             # Borramos las portadas anteriores
             instance.covers.all().delete()
             # Creamos las nuevas portadas
-            for cover_file in covers_files:
-                ProjectCover.objects.create(project=instance, image=cover_file)
+            cover = self.context['request'].FILES.get('cover')
+            ProjectCover.objects.create(project=instance, image=cover)
 
         #instance.organizations.set(organizations)
         #instance.administrators.set(administrators)

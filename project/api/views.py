@@ -7,8 +7,9 @@ from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-
+import json
 from django.contrib.auth.models import User
+from project.models import ProjectCover
 
 from project.models import Project, Topic, HasTag
 from project.api.serializers import ProjectsSerializer, ProjectSerializerCreateUpdate, TopicsSerializer, HasTagSerializer, ProjectSerializer, UserSerializer
@@ -39,14 +40,59 @@ class ProjectCreateViewSet(APIView):
     parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def post(self, request, format=None):
-        print("Contenido que entra desde frontend para crear proyecto:",request.data)
+        print("Contenido que entra desde frontend para crear proyecto:", request.data)
+
+        # Extraer y procesar field_form si está presente y es un string
+        field_form_data = request.data.get('field_form')
+        if field_form_data and isinstance(field_form_data, str):
+            try:
+                field_form_data = json.loads(field_form_data)
+                # Ahora puedes pasar el field_form_data procesado junto con otros datos al serializador
+            except json.JSONDecodeError as e:
+                return Response({'field_form': ['Datos JSON inválidos.']}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Crear un nuevo dict con los datos procesados
+        data = {
+            **request.data,
+            'field_form': field_form_data  # Asegúrate de que esto es un dict y no un string
+        }
+        
+        # Convertir los campos strings a los tipos correctos
+        for field in ['name', 'description', 'raw_password']:
+            if isinstance(data.get(field), list):
+                data[field] = data.get(field)[0]
+        # Asegúrate de que el 'creator' es un único valor, no una lista.
+        if isinstance(data.get('creator'), list):
+            data['creator'] = data.get('creator')[0]
+
+        # Convierte 'is_private' a booleano.
+        is_private = data.get('is_private')
+        if is_private in ['true', 'True', '1']:
+            data['is_private'] = True
+        else:
+            data['is_private'] = False
+
+        # Agregar archivos al dict de datos
+        if 'cover' in request.FILES:
+            print("Se ha encontrado cover en los archivos")
+            cover_file = request.FILES['cover']
+            data['cover'] = {'image': cover_file}
+        
+        
         serializer = ProjectSerializerCreateUpdate(
-            data=request.data, context={'request': request})
+            data=data, context={'request': request})
         if serializer.is_valid():
-            serializer.save()
+            project = serializer.save()
+            """
+            # Procesar los archivos de cover si están presentes
+            if 'cover' in request.FILES:
+                for file in request.FILES.getlist('cover'):
+                    ProjectCover.objects.create(project=project, image=file)
+            """
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         print(serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
    
 class ProjectListCreate(generics.ListCreateAPIView):
     queryset = Project.objects.all()

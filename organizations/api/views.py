@@ -47,5 +47,23 @@ class OrganizationCreateViewSet(APIView):
 class OrganizationDetailUpdateDelete(generics.RetrieveUpdateDestroyAPIView):
     queryset = Organization.objects.all()
     serializer_class = OrganizationSerializerCreateUpdate
-    permission_classes = [IsAuthenticated, IsOrganizationCreatorOrAdmin]
+    permission_classes = [IsOrganizationCreatorOrAdmin]
     parser_classes = (MultiPartParser, FormParser, JSONParser)
+
+    def get(self, request, *args, **kwargs):
+        # Log del token que se está recibiendo
+        auth_header = request.headers.get('Authorization', None)
+        if auth_header:
+            # Divides el prefijo del token si está presente.
+            parts = auth_header.split()
+            if len(parts) == 2 and parts[0].lower() == 'Token':
+                token = parts[1]
+                print(f'Token recibido: {token}')
+            else:
+                print(auth_header)
+        else:
+            print('No se encontró el header de Authorization.')
+
+        # Continúa con el procesamiento normal de la petición.
+        return super().get(request, *args, **kwargs)
+    

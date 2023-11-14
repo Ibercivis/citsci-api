@@ -65,20 +65,38 @@ class ObservationListCreate(generics.ListCreateAPIView):
             except Question.DoesNotExist:
                 return Response({"error": f"No existe una pregunta con id {question_id} en este formulario de campo."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Creamos la observación
-        observation = Observation.objects.create(creator=request.user, field_form=field_form, timestamp=timestamp, geoposition=geoposition, data=data)
+        # Preparamos todo lo necesario para el proceso de validacion en el serializer
 
-        # Ahora que la observación ha sido creada, creamos, validamos y guardamos nuestras imágenes
-        for question, image in image_files:
-            img = ObservationImage(observation=observation, image=image, question=question)
-            try:
-                img.full_clean()  # Validamos la imagen ahora que tenemos una observación
-                img.save()
-            except ValidationError as e:
-                return Response({"error": f"Error al guardar la imagen para la pregunta {question_id}: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+        # Recolectar IDs de preguntas de imagen
+        image_question_ids = [key for key in request.FILES.keys()]
 
-        serializer = self.get_serializer(observation, context={"field_form": field_form})
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        # Crear un diccionario de datos con los campos necesarios
+        observation_data = {
+            'creator': request.user.id,
+            'field_form': field_form.id,
+            'timestamp': timestamp,
+            'geoposition': geoposition,
+            'data': data,
+        }
+
+        # Crear el serializador con los datos y el contexto
+        serializer = ObservationSerializer(data=observation_data, context={"field_form": field_form, "image_question_ids": image_question_ids})
+        if serializer.is_valid(raise_exception=True):
+            # Guardar la observación si es válida
+            observation = serializer.save()
+
+            # Ahora que la observación ha sido creada, creamos, validamos y guardamos nuestras imágenes
+            for question, image in image_files:
+                img = ObservationImage(observation=observation, image=image, question=question)
+                try:
+                    img.full_clean()  # Validamos la imagen ahora que tenemos una observación
+                    img.save()
+                except ValidationError as e:
+                    return Response({"error": f"Error al guardar la imagen para la pregunta {question_id}: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Devolver 201 con la observación creada
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class ObservationRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
@@ -152,8 +170,11 @@ class ObservationRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
             except Question.DoesNotExist:
                 return Response({"error": f"No existe una pregunta con id {question_id} en este formulario de campo."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Recolectar IDs de preguntas de imagen para la Validación en el Serializer
+        image_question_ids = [key for key in request.FILES.keys()]
+
         # Actualizar la observación
-        serializer = self.get_serializer(observation, data=request.data, context={"field_form": field_form})
+        serializer = self.get_serializer(observation, data=request.data, context={"field_form": field_form, "image_question_ids": image_question_ids})
         print(type(data), data)
         serializer.is_valid(raise_exception=True)
         print(serializer.errors)
@@ -202,4 +223,4 @@ class DownloadObservationsCSV(View):
         for observation in observations:
             writer.writerow([observation.id, observation.creator, observation.timestamp, observation.geoposition, observation.data])
 
-        return response
+        return response 

@@ -16,14 +16,23 @@ class DataFieldSerializer(serializers.JSONField):
         if not field_form:
             raise serializers.ValidationError("No se pudo encontrar la FieldForm relacionada.")
         
-        # Convertir data a un diccionario para facilitar la validación
+        # Convertir data a un diccionario para facilitar la validación de las preguntas que no son imágenes
         data_dict = {item["key"]: item["value"] for item in data}
+        print("Data dict: ", data_dict)
+
+        # Acceder al contexto para obtener los IDs de las preguntas que son imágenes
+        image_question_ids = self.context.get('image_question_ids', [])
 
         # Validar que se hayan respondido todas las preguntas obligatorias
         mandatory_questions = field_form.questions.filter(mandatory=True)
+        print("Preguntas obligatorias de este proyecto", mandatory_questions)
         for question in mandatory_questions:
-            if str(question.id) not in data_dict:
-                raise serializers.ValidationError(f"La pregunta {question} es obligatoria y no ha sido respondida.")
+            if question.answer_type in ["IMAGE", "IMG"]:
+                if str(question.id) not in image_question_ids:
+                    raise serializers.ValidationError(f"La pregunta {question} es obligatoria y no ha sido respondida.")
+            else:
+                if str(question.id) not in data_dict:
+                    raise serializers.ValidationError(f"La pregunta {question} es obligatoria y no ha sido respondida.")
         
         # Validar los datos en función del tipo de respuesta
         for key, value in data_dict.items():
