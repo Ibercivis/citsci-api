@@ -23,16 +23,21 @@ class DataFieldSerializer(serializers.JSONField):
         # Acceder al contexto para obtener los IDs de las preguntas que son imágenes
         image_question_ids = self.context.get('image_question_ids', [])
 
-        # Validar que se hayan respondido todas las preguntas obligatorias
-        mandatory_questions = field_form.questions.filter(mandatory=True)
-        print("Preguntas obligatorias de este proyecto", mandatory_questions)
-        for question in mandatory_questions:
-            if question.answer_type in ["IMAGE", "IMG"]:
-                if str(question.id) not in image_question_ids:
-                    raise serializers.ValidationError(f"La pregunta {question} es obligatoria y no ha sido respondida.")
-            else:
-                if str(question.id) not in data_dict:
-                    raise serializers.ValidationError(f"La pregunta {question} es obligatoria y no ha sido respondida.")
+        # Acceder al contexto para verificar si es una creación o actualización
+        observation_instance = self.context.get('instance', None)
+
+        # Si es una creación, se realiza la validación completa
+        if observation_instance is None:
+            # Validar que se hayan respondido todas las preguntas obligatorias
+            mandatory_questions = field_form.questions.filter(mandatory=True)
+            print("Preguntas obligatorias de este proyecto", mandatory_questions)
+            for question in mandatory_questions:
+                if question.answer_type in ["IMAGE", "IMG"]:
+                    if str(question.id) not in image_question_ids:
+                        raise serializers.ValidationError(f"La pregunta {question} es obligatoria y no ha sido respondida.")
+                else:
+                    if str(question.id) not in data_dict:
+                        raise serializers.ValidationError(f"La pregunta {question} es obligatoria y no ha sido respondida.")
         
         # Validar los datos en función del tipo de respuesta
         for key, value in data_dict.items():

@@ -94,7 +94,8 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
     def get_is_liked_by_user(self, obj):
         user = self.context.get('user')
         if user and user.is_authenticated:
-            return obj.likes.filter(id=user.id).exists()
+            liked = obj.likes.filter(id=user.id).exists()
+            return liked
         return False
     
     # Este método nos permite personalizar la representación de las organizaciones para operaciones de lectura
@@ -113,6 +114,7 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
         cover_file = validated_data.pop('cover', None)
         #NUEVALINEA (Si funciona la creación simultánea de Field_forms y Questions, borramos el comentario)
         field_form_data = validated_data.pop('field_form', None)
+        is_private = validated_data.pop('is_private', False)
 
         project = Project.objects.create(**validated_data)
         for tag in hasTag:
@@ -128,6 +130,7 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
         project.save()
         
         if "password" in validated_data:
+            project.is_private = is_private
             password = validated_data.pop('password')
             project.password = password # Usamos el setter de la propiedad password para almacenar la contraseña encriptada
             project.save()

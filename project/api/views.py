@@ -67,7 +67,13 @@ class ProjectCreateViewSet(APIView):
 
         # Convierte 'is_private' a booleano.
         is_private = data.get('is_private')
-        if is_private in ['true', 'True', '1']:
+
+        # Si is_private es una lista, toma el primer elemento
+        if isinstance(is_private, list) and is_private:
+            is_private = is_private[0]
+
+        #Si is_private es true, se pinta privado, si no, público
+        if is_private in ['true', 'True', '1', True]:
             data['is_private'] = True
         else:
             data['is_private'] = False
@@ -114,6 +120,14 @@ class ProjectRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ProjectSerializerCreateUpdate
     permission_classes = [IsCreatorOrAdminOrReadOnly]
     parser_classes = (MultiPartParser, FormParser, JSONParser)
+
+    def get_serializer_context(self):
+        """
+        Sobrescribe el método para asegurarse de que el contexto incluya el usuario.
+        """
+        context = super().get_serializer_context()
+        context.update({"user": self.request.user})
+        return context
 
     def update(self, request, *args, **kwargs):
         print("LLamada al editar un proyecto", request.data)

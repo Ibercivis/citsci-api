@@ -174,7 +174,7 @@ class ObservationRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
         image_question_ids = [key for key in request.FILES.keys()]
 
         # Actualizar la observación
-        serializer = self.get_serializer(observation, data=request.data, context={"field_form": field_form, "image_question_ids": image_question_ids})
+        serializer = self.get_serializer(observation, data=request.data, context={"field_form": field_form, "image_question_ids": image_question_ids, "instance": observation})
         print(type(data), data)
         serializer.is_valid(raise_exception=True)
         print(serializer.errors)
