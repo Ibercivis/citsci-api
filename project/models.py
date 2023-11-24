@@ -28,7 +28,7 @@ class Project(models.Model):
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     administrators = models.ManyToManyField(User, related_name='admin_projects')
     name = models.CharField(max_length=200, blank=False)
-    description = models.CharField(max_length=200, blank=False)
+    description = models.CharField(max_length=1000, blank=False)
     topic = models.ManyToManyField(Topic, blank=True)
     hasTag = models.ManyToManyField(HasTag, blank=True)
     is_private = models.BooleanField(default=False)

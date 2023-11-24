@@ -12,7 +12,7 @@ class Type(models.Model):
 class Organization(models.Model):
     principalName = models.CharField(max_length=50, blank=False)
     url = models.CharField(max_length=50, blank=True)
-    description = models.CharField(max_length=200, blank=True)
+    description = models.CharField(max_length=500, blank=True)
     type = models.ManyToManyField(Type, blank=True)
     contactName = models.CharField(max_length=50, blank=True)
     contactMail = models.CharField(max_length=50, blank=True)

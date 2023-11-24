@@ -37,9 +37,9 @@ class CustomCountryFieldSerializer(serializers.Field):
         return country.code  # Devuelve el código de país para guardarlo en la base de datos.
 
 class ProfileSerializer(serializers.ModelSerializer):
-    created_organizations = OrganizationSummarySerializer(many=True, read_only=True)
-    admin_organizations = OrganizationSummarySerializer(many=True, read_only=True)
-    member_organizations = OrganizationSummarySerializer(many=True, read_only=True)
+    created_organizations = serializers.SerializerMethodField()
+    admin_organizations = serializers.SerializerMethodField()
+    member_organizations = serializers.SerializerMethodField()
     participated_projects = serializers.SerializerMethodField()
     created_projects = serializers.SerializerMethodField()
     liked_projects = serializers.SerializerMethodField()
@@ -49,6 +49,18 @@ class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
         fields = ['biography', 'visibility', 'country', 'cover', 'created_organizations', 'admin_organizations', 'member_organizations', 'participated_projects', 'created_projects', 'liked_projects']
+
+    def get_admin_organizations(self, obj):
+        organizations = Organization.objects.filter(administrators__in=[obj.user])
+        return OrganizationSummarySerializer(organizations, many=True).data
+    
+    def get_member_organizations(self, obj):
+        organizations = Organization.objects.filter(members__in=[obj.user])
+        return OrganizationSummarySerializer(organizations, many=True).data
+    
+    def get_created_organizations(self, obj):
+        organizations = Organization.objects.filter(creator=obj.user)
+        return OrganizationSummarySerializer(organizations, many=True).data
 
     def get_participated_projects(self, obj):
         # Aquí, 'obj' es una instancia de Profile, pero como Profile está relacionado
@@ -64,6 +76,8 @@ class ProfileSerializer(serializers.ModelSerializer):
     
     def get_liked_projects(self, obj):
         return ProjectSummarySerializer(obj.user.liked_projects.all(), many=True).data
+    
+    
 
 
 class UserSerializer(serializers.ModelSerializer):
