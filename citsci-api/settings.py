@@ -32,7 +32,7 @@ SECRET_KEY = "django-insecure-!rihhd3lxg-!3x8+ea*3)n9ncc7%o6%v_#ben)rui-8+@+%h@o
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-ALLOWED_HOSTS = ['dev.ibercivis.es']
+ALLOWED_HOSTS = ['dev.ibercivis.es','geonity.ibercivis.es']
 
 # Environment
 env = environ.Env()
@@ -153,6 +153,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 
 STATIC_URL = "static/"
+STATIC_ROOT = "static/"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field

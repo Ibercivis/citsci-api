@@ -21,10 +21,12 @@ class ProjectsViewSet(viewsets.ModelViewSet):
 class TopicsViewSet(viewsets.ModelViewSet):
     queryset = Topic.objects.all()
     serializer_class = TopicsSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
 class HasTagViewSet(viewsets.ModelViewSet):
     queryset = HasTag.objects.all()
     serializer_class = HasTagSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
 # Método de Fran. TODO: ¿eliminarlo?
 
@@ -104,6 +106,7 @@ class ProjectListCreate(generics.ListCreateAPIView):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializerCreateUpdate
     parser_classes = (MultiPartParser, FormParser, JSONParser)
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_serializer_context(self):
         return {'user': self.request.user}
