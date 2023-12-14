@@ -77,8 +77,6 @@ class ProfileSerializer(serializers.ModelSerializer):
     def get_liked_projects(self, obj):
         return ProjectSummarySerializer(obj.user.liked_projects.all(), many=True).data
     
-    
-
 
 class UserSerializer(serializers.ModelSerializer):
     profile = ProfileSerializer()
