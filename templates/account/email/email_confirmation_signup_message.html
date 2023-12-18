@@ -53,7 +53,7 @@
       <p>¡Enhorabuena, acabas de unirte a Geonity! Estamos emocionados de tenerte como parte de nuestra comunidad y esperamos que disfrutes de la experiencia recopilando datos en tiempo real.</p>
       <p><strong>{{ user.username }}</strong>, estás a punto de sumergirte en un mundo donde la información fluye de manera instantánea, permitiéndote participar, crear nuevos proyectos y establecer tu propia organización.</p>
       <p>Para comenzar a utilizar tu cuenta, por favor, haz clic en el botón de abajo para activarla.</p>
-      <a href="https://geonity.ibercivis.es/api/users/activate-account/{{ key }}" class="button">Activa tu cuenta</a>
+      <a href="{{ request.scheme }}://{{ request.get_host }}/api/users/activate-account/{{ key }}" class="button">Activa tu cuenta</a>
     </div>
     <div class="footer">
       <p>Este es un email automático, por favor no responder.</p>
