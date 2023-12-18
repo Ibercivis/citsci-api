@@ -1,4 +1,5 @@
 from rest_framework import viewsets
+from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -15,6 +16,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.http import HttpResponse
+from rest_framework.permissions import AllowAny
 from dj_rest_auth.registration.views import ConfirmEmailView
 
 class UserViewSet(generics.ListAPIView):
@@ -55,7 +57,12 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
         print(serializer.errors)
         return Response(serializer.errors, status=400)
 
+@method_decorator(csrf_exempt, name='dispatch')
 class CustomConfirmEmailView(ConfirmEmailView):
+    authentication_classes = []  # Deshabilita todas las clases de autenticación
+    permission_classes = [AllowAny]  # Permite el acceso a cualquier usuario, autenticado o no
+
+    @method_decorator(csrf_exempt)
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
         # Verifica si la confirmación fue exitosa
@@ -64,13 +71,15 @@ class CustomConfirmEmailView(ConfirmEmailView):
         else:
             return response
 
-
+@method_decorator(csrf_exempt, name='dispatch')
 class ActivateAccountView(View):
+    authentication_classes = []  # Deshabilita todas las clases de autenticación
+    permission_classes = [AllowAny]  # Permite el acceso a cualquier usuario, autenticado o no
 
     @method_decorator(csrf_exempt)
     def get(self, request, key):
         # Define la URL de la API para la activación
-        api_url = 'http://dev.ibercivis.es:10001/api/users/registration/account-confirm-email/{key}/'.format(key=key)
+        api_url = f'{settings.BASE_URL}/api/users/registration/account-confirm-email/{key}/'.format(key=key)
 
         # Realiza la llamada POST al servidor para activar la cuenta
         response = requests.post(api_url, data={'key': key})

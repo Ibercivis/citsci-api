@@ -43,6 +43,9 @@ env_file = Path(__file__).resolve().parent / "local.env"
 if env_file.exists():
     environ.Env.read_env(str(env_file))
 
+# For the API
+BASE_URL = env("BASE_URL")
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -59,7 +62,7 @@ INSTALLED_APPS = [
     "allauth",
     "allauth.account",
     "django_countries",
-    # "allauth.socialaccount" # Para implementar autenticación usando redes sociales
+    "allauth.socialaccount", # Para implementar autenticación usando redes sociales
 
     # My apps
     "project",
@@ -74,7 +77,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    #"django.middleware.csrf.CsrfViewMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -194,6 +197,8 @@ EMAIL_BACKEND = 'django_ses.SESBackend'
 DEFAULT_FROM_EMAIL = env("FROM_EMAIL")
 EMAIL_SUBJECT_PREFIX = '[Geonity]'
 
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_EMAIL_REQUIRED = True
 
 # AWS SES
 AWS_ACCESS_KEY_ID = env('AWS_ACCESS_KEY_ID')
