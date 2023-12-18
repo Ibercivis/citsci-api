@@ -70,7 +70,7 @@ class ActivateAccountView(View):
     @method_decorator(csrf_exempt)
     def get(self, request, key):
         # Define la URL de la API para la activación
-        api_url = 'http://dev.ibercivis.es:10001/api/users/registration/account-confirm-email/{key}/'.format(key=key)
+        api_url = 'https://geonity.ibercivis.es/api/users/registration/account-confirm-email/{key}/'.format(key=key)
 
         # Realiza la llamada POST al servidor para activar la cuenta
         response = requests.post(api_url, data={'key': key})
