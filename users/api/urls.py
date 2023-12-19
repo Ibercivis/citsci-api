@@ -4,8 +4,9 @@ from dj_rest_auth.views import PasswordResetConfirmView, PasswordResetView
 from dj_rest_auth.registration.views import VerifyEmailView, ConfirmEmailView
 from django.conf import settings
 from django.conf.urls.static import static
+from users.api.views import EmailRecoveryView
 
-from users.api.views import UserViewSet, UserViewSetDetail, UserProfileView, CountryListView, VisibleUsersListView, ActivateAccountView, CustomConfirmEmailView
+from users.api.views import UserViewSet, UserViewSetDetail, UserProfileView, CountryListView, VisibleUsersListView, ActivateAccountView, CustomConfirmEmailView, RecoverySuccess
 
 urlpatterns = [
     path('users/activate-account/<str:key>/', ActivateAccountView.as_view(), name='activate-account'),
@@ -13,11 +14,13 @@ urlpatterns = [
     path('users/registration/', include('dj_rest_auth.registration.urls')),
     path('users/account-confirm-email/', ConfirmEmailView.as_view(), name='account_email_verification_sent'),
     path('users/authentication/', include('dj_rest_auth.urls')),
-    path('users/authentication/password/reset/', PasswordResetView.as_view(), name='rest_password_reset'),
+    path('users/authentication/password/reset/', include('django.contrib.auth.urls')),
     path('users/authentication/password/reset/confirm/<str:uidb64>/<str:token>', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('users/', UserViewSet.as_view(), name='users'),
     path('users/<int:pk>/', UserViewSetDetail.as_view(), name='users-detail'),
     path('users/profile/', UserProfileView.as_view(), name='user-profile'),
     path('users/list/', VisibleUsersListView.as_view(), name='user-list-visible'),
     path('users/countries/', CountryListView.as_view(), name='countries-list'),
+    path('users/email_recovery/', EmailRecoveryView.as_view(), name='email_recovery'),
+    path('users/recovery_success/', RecoverySuccess.as_view(), name='recovery_success'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

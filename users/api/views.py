@@ -7,7 +7,6 @@ from rest_framework import generics, permissions
 from django_countries import countries
 from django.contrib.auth.models import User
 from users.api.serializers import UserSerializer
-from users.models import Profile
 from users.api.serializers import ProfileSerializer
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 import requests
@@ -18,6 +17,7 @@ from django.views import View
 from django.http import HttpResponse
 from rest_framework.permissions import AllowAny
 from dj_rest_auth.registration.views import ConfirmEmailView
+import re
 
 class UserViewSet(generics.ListAPIView):
     queryset = User.objects.all()
@@ -91,19 +91,30 @@ class ActivateAccountView(View):
         else:
             # Algo salió mal, maneja el error
             return render(request, 'activation_fail.html', {'error': response.text})
-"""
-def activate_account(request, key):
-    # Define la URL de la API para la activación
-    api_url = 'http://dev.ibercivis.es:10001/api/users/registration/account-confirm-email/{key}/'
 
-    # Realiza la llamada POST al servidor para activar la cuenta
-    response = requests.post(api_url, data={'key': key})
+class EmailRecoveryView(View):
+    def get(self, request, *args, **kwargs):
+        reset_url = request.GET.get('resetUrl', '')
+        
+        # Extraer uid y token usando una expresión regular
+        match = re.search(r'reset/confirm/([^/]+)/([^/]+)$', reset_url)
+        if match:
+            uid = match.group(1)
+            token = match.group(2)
+        else:
+            uid = ''
+            token = ''
+        
+        print("reset_url: ", reset_url)
+        print("UID: ", uid)
+        print("Token: ", token)
 
-    # Comprueba la respuesta y muestra un mensaje adecuado al usuario
-    if response.status_code == 200:
-        # La cuenta ha sido activada
-        return render(request, 'activation_success.html')
-    else:
-        # Algo salió mal, maneja el error
-        return render(request, 'activation_fail.html', {'error': response.text})
-"""
+        context = {
+            'uid': uid,
+            'token': token,
+        }
+        return render(request, 'email_recovery.html', context)
+    
+class RecoverySuccess(View):
+    def get(self, request, *args, **kwargs):
+        return render(request, 'recovery_success.html')
