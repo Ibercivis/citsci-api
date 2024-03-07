@@ -31,7 +31,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 SECRET_KEY = "django-insecure-!rihhd3lxg-!3x8+ea*3)n9ncc7%o6%v_#ben)rui-8+@+%h@o"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 ALLOWED_HOSTS = ['dev.ibercivis.es','geonity.ibercivis.es']
 
 # Environment
@@ -186,6 +186,11 @@ REST_FRAMEWORK = {
 REST_AUTH_SERIALIZERS = {
     'PASSWORD_RESET_SERIALIZER': 'dj_rest_auth.serializers.PasswordResetSerializer',
 }
+
+AUTHENTICATION_BACKENDS = [
+    'users.authentication_backends.EmailOrUsernameModelBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
 
 # As we added django.contrib.sites
 SITE_ID = 1

@@ -85,7 +85,6 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
         fields = ['id', 'name', 'description', 'created_at', 'updated_at', 'topic', 'hasTag', 'cover', 'contributions', 'total_likes', 'is_liked_by_user', 'organizations', 'organizations_write', 'creator', 'administrators', 'is_private', 'raw_password', 'field_form']
 
     def validate(self, data):
-        print("Contenido a validar del frontend:", data)
         if data.get("is_private") and not data.get("password"):
             raise serializers.ValidationError("Debe proporcionar una contraseña si el proyecto es privado.")
         return data
@@ -106,7 +105,6 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
         return representation
     
     def create(self, validated_data, *args, **kwargs):
-        print("Contenido validado del frontend para crear proyecto:",validated_data)
         hasTag = validated_data.pop('hasTag', [])
         topic = validated_data.pop('topic', [])
         administrators = validated_data.pop('administrators', [])
@@ -136,19 +134,15 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
             project.save()
 
         if field_form_data:
-            print("Entra en field_form_data: ", field_form_data)
             # Asegurarse de que field_form_data es un diccionario
             if isinstance(field_form_data, str):
-                print("Es un string")
                 try:
                     field_form_data = json.loads(field_form_data)
                 except json.JSONDecodeError:
                     raise serializers.ValidationError({'field_form': ['Datos JSON inválidos.'] })
             # Crea el FieldForm asociado
             field_form = FieldForm.objects.create(project=project)
-            print("FieldForm creado: ", field_form)
             for question_data in field_form_data.get('questions', []):
-                print("Preguntas asociadas: ", question_data)
                 Question.objects.create(field_form=field_form, **question_data)
             
             field_form.save()

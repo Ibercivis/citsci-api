@@ -4,8 +4,7 @@ from dj_rest_auth.views import PasswordResetConfirmView, PasswordResetView
 from dj_rest_auth.registration.views import VerifyEmailView, ConfirmEmailView
 from django.conf import settings
 from django.conf.urls.static import static
-from users.api.views import EmailRecoveryView
-
+from users.api.views import EmailRecoveryView, UserDeleteView
 from users.api.views import UserViewSet, UserViewSetDetail, UserProfileView, CountryListView, VisibleUsersListView, ActivateAccountView, CustomConfirmEmailView, RecoverySuccess
 
 urlpatterns = [
@@ -23,4 +22,5 @@ urlpatterns = [
     path('users/countries/', CountryListView.as_view(), name='countries-list'),
     path('users/email_recovery/', EmailRecoveryView.as_view(), name='email_recovery'),
     path('users/recovery_success/', RecoverySuccess.as_view(), name='recovery_success'),
+    path('users/delete/', UserDeleteView.as_view(), name='user-delete'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

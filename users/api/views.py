@@ -9,6 +9,7 @@ from django.contrib.auth.models import User
 from users.api.serializers import UserSerializer
 from users.api.serializers import ProfileSerializer
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.permissions import IsAuthenticated
 import requests
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
@@ -118,3 +119,11 @@ class EmailRecoveryView(View):
 class RecoverySuccess(View):
     def get(self, request, *args, **kwargs):
         return render(request, 'recovery_success.html')
+
+class UserDeleteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, *args, **kwargs):
+        user = request.user
+        user.delete()
+        return Response({"message": "User deleted successfully."}, status=status.HTTP_204_NO_CONTENT)

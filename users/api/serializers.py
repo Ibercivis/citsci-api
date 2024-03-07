@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from users.models import Profile
 from organizations.models import Organization
 from markers.models import Observation
-from project.models import Project
+from project.models import Project, ProjectCover
 from django_countries.fields import Country
 from django_countries import countries
 
@@ -12,10 +12,28 @@ class ProjectSummarySerializer(serializers.ModelSerializer):
         model = Project
         fields = ['id', 'name', 'description']
 
-class OrganizationSummarySerializer(serializers.ModelSerializer):
+class ProjectCoverSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Organization
-        fields = ['id', 'principalName']
+        model = ProjectCover
+        fields = ['image']
+
+class ObservationSummarySerializer(serializers.ModelSerializer):
+    creator = serializers.ReadOnlyField(source='creator.username')
+    name_project = serializers.SerializerMethodField()
+    cover_project = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Observation
+        fields = ['id', 'creator', 'geoposition', 'updated_at', 'cover_project', 'name_project']
+
+    def get_name_project(self, obj):
+        return obj.field_form.project.name
+
+    def get_cover_project(self, obj):
+        # Serializa la primera cover del proyecto asociado, si existe.
+        if obj.field_form.project.covers.first():
+            return ProjectCoverSerializer(obj.field_form.project.covers.first()).data
+        return None
 
 class CustomCountryFieldSerializer(serializers.Field):
     def to_representation(self, value):
@@ -41,6 +59,7 @@ class ProfileSerializer(serializers.ModelSerializer):
     admin_organizations = serializers.SerializerMethodField()
     member_organizations = serializers.SerializerMethodField()
     participated_projects = serializers.SerializerMethodField()
+    created_observations = serializers.SerializerMethodField()
     created_projects = serializers.SerializerMethodField()
     liked_projects = serializers.SerializerMethodField()
     country = CustomCountryFieldSerializer()
@@ -48,7 +67,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Profile
-        fields = ['biography', 'visibility', 'country', 'cover', 'created_organizations', 'admin_organizations', 'member_organizations', 'participated_projects', 'created_projects', 'liked_projects']
+        fields = ['biography', 'visibility', 'country', 'cover', 'created_organizations', 'admin_organizations', 'member_organizations', 'participated_projects', 'created_observations', 'created_projects', 'liked_projects']
 
     def get_admin_organizations(self, obj):
         organizations = Organization.objects.filter(administrators__in=[obj.user])
@@ -69,6 +88,10 @@ class ProfileSerializer(serializers.ModelSerializer):
         project_ids = Observation.objects.filter(creator=obj.user).values_list('field_form__project', flat=True).distinct()
         projects = Project.objects.filter(id__in=project_ids)
         return ProjectSummarySerializer(projects, many=True).data
+
+    def get_created_observations(self, obj):
+        observations = obj.user.observations.all()
+        return ObservationSummarySerializer(observations, many=True, context=self.context).data
     
     def get_created_projects(self, obj): 
         projects = Project.objects.filter(creator=obj.user)
