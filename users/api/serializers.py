@@ -17,6 +17,11 @@ class ProjectCoverSerializer(serializers.ModelSerializer):
         model = ProjectCover
         fields = ['image']
 
+class OrganizationSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Organization
+        fields = ['id', 'principalName']
+
 class ObservationSummarySerializer(serializers.ModelSerializer):
     creator = serializers.ReadOnlyField(source='creator.username')
     name_project = serializers.SerializerMethodField()

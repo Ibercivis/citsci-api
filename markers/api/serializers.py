@@ -42,7 +42,6 @@ class DataFieldSerializer(serializers.JSONField):
         # Validar los datos en función del tipo de respuesta
         for key, value in data_dict.items():
             question_obj = field_form.questions.get(pk=key)
-            print(f"Question ID: {key}, Answer Type: {question_obj.answer_type}, Value: {value}")  # DEBUG
             if question_obj.answer_type == "DATE":
                 try:
                     serializers.DateField().to_internal_value(value)
@@ -50,7 +49,7 @@ class DataFieldSerializer(serializers.JSONField):
                     raise serializers.ValidationError(f"La respuesta para la pregunta {question} debe ser una fecha válida.")
             elif question_obj.answer_type == "NUMBER" or question_obj.answer_type == "NUM":
                 try:
-                    serializers.DecimalField(max_digits=20, decimal_places=2).to_internal_value(value)
+                    serializers.DecimalField(max_digits=20, decimal_places=5).to_internal_value(value)
                 except serializers.ValidationError:
                     raise serializers.ValidationError(f"La respuesta para la pregunta {question} debe ser un número válido.")
             elif question_obj.answer_type == "STRING" or question_obj.answer_type == "STR":
