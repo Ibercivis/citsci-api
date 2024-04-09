@@ -1,5 +1,8 @@
 import json, csv
+from django.conf import settings
+from django.urls import reverse
 from django.http import HttpResponse
+from django.contrib.gis.geos import Point
 from rest_framework.views import View
 from rest_framework.permissions import IsAuthenticated
 from django.core.exceptions import ValidationError
@@ -205,7 +208,8 @@ class ObservationByFieldFormList(generics.ListAPIView):
         """
         field_form_id = self.kwargs['field_form_id']
         return Observation.objects.filter(field_form__id=field_form_id)
-    
+
+"""    
 class DownloadObservationsCSV(View):
     def get(self, request, *args, **kwargs):
         project_id = self.kwargs.get("project_id")
@@ -224,3 +228,45 @@ class DownloadObservationsCSV(View):
             writer.writerow([observation.id, observation.creator, observation.timestamp, observation.geoposition, observation.data])
 
         return response 
+"""
+class DownloadObservationsCSV(View):
+    def get(self, request, *args, **kwargs):
+        project_id = self.kwargs.get("project_id")
+
+        observations = Observation.objects.filter(field_form__project__id=project_id).select_related('field_form').prefetch_related('field_form__questions', 'images__question')
+
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="project_{project_id}_observations.csv"'
+
+        question_ids = observations.values_list('field_form__questions', flat=True).distinct()
+        questions = Question.objects.filter(id__in=question_ids)
+
+        header = ['ID', 'Timestamp', 'Latitude', 'Longitude'] + [question.question_text for question in questions]
+        writer = csv.writer(response)
+        writer.writerow(header)
+
+        for observation in observations:
+            row = [observation.id, observation.timestamp]
+            
+            # Asumiendo que geoposition es un objeto Point, extraemos la latitud y longitud
+            geoposition = observation.geoposition
+            if isinstance(geoposition, Point):
+                latitude = geoposition.y
+                longitude = geoposition.x
+            else:
+                latitude, longitude = '', ''
+
+            row.extend([latitude, longitude])
+
+            data_dict = {int(item['key']): item['value'] for item in observation.data}
+            
+            for image in observation.images.all():
+                image_url = request.build_absolute_uri(image.image.url) if image.image else ''
+                data_dict[image.question.id] = image_url
+
+            for question in questions:
+                row.append(data_dict.get(question.id, ''))
+
+            writer.writerow(row)
+
+        return response

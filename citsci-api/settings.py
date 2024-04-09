@@ -31,7 +31,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 SECRET_KEY = "django-insecure-!rihhd3lxg-!3x8+ea*3)n9ncc7%o6%v_#ben)rui-8+@+%h@o"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 ALLOWED_HOSTS = ['dev.ibercivis.es','geonity.ibercivis.es']
 
 # Environment
