@@ -17,17 +17,30 @@ class ProjectCoverSerializer(serializers.ModelSerializer):
         model = ProjectCover
         fields = ['image']
 
+class OrganizationSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Organization
+        fields = ['id', 'principalName']
+
 class ObservationSummarySerializer(serializers.ModelSerializer):
     creator = serializers.ReadOnlyField(source='creator.username')
     name_project = serializers.SerializerMethodField()
     cover_project = serializers.SerializerMethodField()
+    id_project = serializers.SerializerMethodField()
+    is_private_project = serializers.SerializerMethodField()
 
     class Meta:
         model = Observation
-        fields = ['id', 'creator', 'geoposition', 'updated_at', 'cover_project', 'name_project']
+        fields = ['id', 'creator', 'geoposition', 'updated_at', 'id_project', 'cover_project', 'name_project', 'is_private_project']
 
     def get_name_project(self, obj):
         return obj.field_form.project.name
+
+    def get_id_project(self, obj):
+        return obj.field_form.project.id
+
+    def get_is_private_project(self, obj):
+        return obj.field_form.project.is_private
 
     def get_cover_project(self, obj):
         # Serializa la primera cover del proyecto asociado, si existe.
