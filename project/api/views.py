@@ -128,17 +128,15 @@ class ProjectRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
         """
         Sobrescribe el método para asegurarse de que el contexto incluya el usuario.
         """
-        """
         context = super().get_serializer_context()
         context.update({"user": self.request.user})
         return context
-        """
-        return {'user': self.request.user}
+        
 
     def update(self, request, *args, **kwargs):
-        print("LLamada al editar un proyecto", request.data)
+        print("LLamada al editar un proyecto", request)
         instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer = self.get_serializer(instance, data=request.data, partial=True, context=self.get_serializer_context())
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
