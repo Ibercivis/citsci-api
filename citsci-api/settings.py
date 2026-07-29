@@ -15,7 +15,6 @@ from pathlib import Path
 import environ
 import os
 
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -27,13 +26,6 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-!rihhd3lxg-!3x8+ea*3)n9ncc7%o6%v_#ben)rui-8+@+%h@o"
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
-ALLOWED_HOSTS = ['dev.ibercivis.es', 'geonity.ibercivis.es']
-
 # Environment
 env = environ.Env()
 
@@ -42,6 +34,15 @@ env = environ.Env()
 env_file = Path(__file__).resolve().parent / "local.env"
 if env_file.exists():
     environ.Env.read_env(str(env_file))
+
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = env("SECRET_KEY", default="django-insecure-!rihhd3lxg-!3x8+ea*3)n9ncc7%o6%v_#ben)rui-8+@+%h@o")
+
+# SECURITY WARNING: don't run with debug turned on in production!
+# Auto-enables DEBUG when running via manage.py runserver, unless overridden by env var
+import sys
+DEBUG = env.bool("DEBUG", default='runserver' in sys.argv)
+ALLOWED_HOSTS = ['api.ibercivis.es', 'geonity.ibercivis.es', 'geonity-backend.ibercivis.es']
 
 # For the API
 BASE_URL = env("BASE_URL")
@@ -56,13 +57,21 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.sites",
+    "django.contrib.gis",
     "rest_framework",
     "rest_framework.authtoken",
+    "drf_spectacular",
     "dj_rest_auth",
+    "dj_rest_auth.registration",
     "allauth",
     "allauth.account",
     "django_countries",
     "allauth.socialaccount", # Para implementar autenticación usando redes sociales
+    "allauth.socialaccount.providers.google",
+
+    "django_rq",
+
+    "django_db_logger",
 
     # My apps
     "project",
@@ -76,11 +85,13 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = "citsci-api.urls"
@@ -143,7 +154,20 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
 
-LANGUAGE_CODE = "en-us"
+from django.utils.translation import gettext_lazy as _
+
+LANGUAGE_CODE = "es"
+
+LANGUAGES = [
+    ('es', _('Spanish')),
+    ('en', _('English')),
+    ('fr', _('French')),
+    ('pt', _('Portuguese')),
+    ('it', _('Italian')),
+    ('de', _('German')),
+]
+
+LOCALE_PATHS = [BASE_DIR / 'locale']
 
 TIME_ZONE = "UTC"
 
@@ -181,13 +205,23 @@ REST_FRAMEWORK = {
         #'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.TokenAuthentication'
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
-REST_AUTH_SERIALIZERS = {
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'citsci-api',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
+
+REST_AUTH = {
     'PASSWORD_RESET_SERIALIZER': 'dj_rest_auth.serializers.PasswordResetSerializer',
+    'REGISTER_SERIALIZER': 'users.api.serializers.CustomRegisterSerializer',
+    'USER_DETAILS_SERIALIZER': 'users.api.serializers.UserDetailsSerializer',
 }
 
 AUTHENTICATION_BACKENDS = [
+    'allauth.account.auth_backends.AuthenticationBackend',
     'users.authentication_backends.EmailOrUsernameModelBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
@@ -204,6 +238,26 @@ EMAIL_SUBJECT_PREFIX = '[Geonity]'
 
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+
+GOOGLE_CALLBACK_URL = 'https://geonity-admin.ibercivis.es/auth/google/callback'
+
+SOCIALACCOUNT_STORE_TOKENS = False
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': ['profile', 'email'],
+        'AUTH_PARAMS': {'access_type': 'online'},
+        'APP': {
+            'client_id': env('GOOGLE_CLIENT_ID', default=''),
+            'secret': env('GOOGLE_CLIENT_SECRET', default=''),
+            'key': '',
+        }
+    }
+}
+SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
+SOCIALACCOUNT_ADAPTER = 'users.adapters.CustomSocialAccountAdapter'
 
 # AWS SES
 AWS_ACCESS_KEY_ID = env('AWS_ACCESS_KEY_ID')
@@ -211,3 +265,75 @@ AWS_SECRET_ACCESS_KEY = env('AWS_SECRET_ACCESS_KEY')
 # Additionally, if you are not using the default AWS region of us-east-1,
 AWS_SES_REGION_NAME = env('AWS_SES_REGION_NAME')
 AWS_SES_REGION_ENDPOINT = env('AWS_SES_REGION_ENDPOINT')
+
+CLIENT_API_KEY_MOBILE = env('CLIENT_API_KEY_MOBILE')
+CLIENT_API_KEY_WEB = env('CLIENT_API_KEY_WEB')
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': f"redis://{env('REDIS_HOST', default='localhost')}:{env.int('REDIS_PORT', default=6379)}/1",
+        'TIMEOUT': 60 * 60 * 24,  # 24h — se invalida por signal al llegar observaciones
+    }
+}
+
+RQ_QUEUES = {
+    'citisciapi': {
+        'HOST': env('REDIS_HOST', default='localhost'),
+        'PORT': env.int('REDIS_PORT', default=6379),
+        'DB': 0,
+        'DEFAULT_TIMEOUT': 360,
+    }
+}
+
+ADMINS = [('Ibercivis', 'frasanz@ibercivis.es')]
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S'
+        },
+        'simple': {
+            'format': '%(levelname)s %(message)s'
+        },
+    },
+    'handlers': {
+        'db': {
+            'level': 'ERROR',
+            'class': 'django_db_logger.db_log_handler.DatabaseLogHandler',
+            'formatter': 'verbose',
+        },
+        'mail_admins': {
+            'level': 'ERROR',
+            'class': 'django.utils.log.AdminEmailHandler',
+            'formatter': 'verbose',
+            'include_html': True,
+            'email_backend': 'django.core.mail.backends.smtp.EmailBackend',
+        },
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['db', 'mail_admins', 'console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'django.request': {
+            'handlers': ['db', 'mail_admins'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'geonity': {
+            'handlers': ['db', 'mail_admins', 'console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+}

@@ -19,9 +19,12 @@ from django.conf.urls import include
 from django.conf import settings # JORGE: Para poder servir los archivos multimedia
 from django.conf.urls.static import static # JORGE: Para poder servir los archivos multimedia
 from dj_rest_auth.views import PasswordResetConfirmView
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     # JORGE: Comento las urls de registro y autenticación de usuarios y me las llevo a la aplicación de usuarios
     # path('api/registration/', include('dj_rest_auth.registration.urls')),
     # path('api/authentication/', include('dj_rest_auth.urls')),
@@ -29,6 +32,7 @@ urlpatterns = [
     path('api/', include('project.api.urls')),
     path('api/', include('field_forms.api.urls')),
     path('api/', include('users.api.urls')),
+    path('accounts/', include('allauth.urls')),
     path('api/', include('organizations.api.urls')),
     path('api/', include('markers.api.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

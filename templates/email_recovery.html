@@ -103,24 +103,31 @@
                 body: JSON.stringify(data),
             })
             .then(response => {
-                if (!response.ok) {
-                    throw new Error('Error en el restablecimiento de la contraseña');
+                return response.json().then(body => ({ ok: response.ok, body }));
+            })
+            .then(({ ok, body }) => {
+                if (!ok) {
+                    var messages = [];
+                    Object.values(body).forEach(function(errors) {
+                        if (Array.isArray(errors)) {
+                            errors.forEach(function(e) { messages.push(e); });
+                        } else {
+                            messages.push(errors);
+                        }
+                    });
+                    showToast(messages.join('\n'));
+                    return;
                 }
-                return response.json();
+                window.location.href = '{{ request.scheme }}://{{ request.get_host }}/api/users/recovery_success';
             })
-            .then(data => {
-                // Redireccionamiento en caso de éxito
-                window.location.href = '{{ request.scheme }}://{{ request.get_host }}/api/users/recovery_success'; // Reemplaza con la URL de tu página de éxito
-            })
-            .catch((error) => {
-                // Mostrar Toast con el error
-                showToast(error.message);
+            .catch(function() {
+                showToast('Error de conexión. Inténtalo de nuevo.');
             });
         });
 
         function showToast(message) {
-            // Crear y mostrar un Toast (mensaje emergente)
             var toast = document.createElement("div");
+            toast.style.whiteSpace = 'pre-line';
             toast.textContent = message;
             toast.style.position = 'fixed';
             toast.style.bottom = '10px';

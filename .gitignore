@@ -9,3 +9,5 @@ __pycache__/
 
 media/*
 uwsgi.ini
+# collectstatic output
+static/
