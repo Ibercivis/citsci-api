@@ -21,6 +21,11 @@ urlpatterns = [
     # Valores administrativos en bloque (por proyecto)
     path('projects/<int:project_id>/observation-admin-values/', views.ProjectObservationAdminValuesView.as_view(), name='project_observation_admin_values'),
 
+    # Contribución anónima por QR (sin sesión, identificada por X-Anonymous-Id)
+    path('anonymous/<uuid:token>/', views.AnonymousProjectInfoView.as_view(), name='anonymous_project_info'),
+    path('anonymous/<uuid:token>/observations/', views.AnonymousObservationCreateView.as_view(), name='anonymous_observation_create'),
+    path('anonymous/<uuid:token>/observations/mine/', views.AnonymousMyObservationsView.as_view(), name='anonymous_observations_mine'),
+
     # Emails a creadores de observaciones
     path('observations/<int:observation_id>/send-email/', views.SendObservationEmailView.as_view(), name='observation_send_email'),
     path('observations/<int:observation_id>/email-logs/', views.ObservationEmailLogListView.as_view(), name='observation_email_logs'),

@@ -9,6 +9,7 @@ from .views import (
     ProjectInviteView, ProjectInvitationsListView,
     ProjectPendingInvitationsView, ProjectAcceptInvitationView, ProjectRejectInvitationView,
     ProjectCancelInvitationView, ProjectRemoveAdministratorView, ProjectExportView,
+    RegenerateAnonymousTokenView,
 )
 
 
@@ -47,6 +48,7 @@ urlpatterns = [
     path('project/invitations/<int:invitation_id>/cancel/', ProjectCancelInvitationView.as_view(), name='project-invitation-cancel'),
 
     path('project/<int:pk>/export/', ProjectExportView.as_view(), name='project-export'),
+    path('project/<int:pk>/regenerate-anonymous-token/', RegenerateAnonymousTokenView.as_view(), name='project-regenerate-anonymous-token'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 urlpatterns += router.urls

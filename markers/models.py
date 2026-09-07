@@ -20,11 +20,23 @@ class Observation(models.Model):
     geoposition = gis_models.PointField()
     data = JSONField()
     platform = models.CharField(max_length=10, choices=PLATFORM_CHOICES, null=True, blank=True)
+    # Contribucion anonima por QR: sin creator, identificada por el UUID que genera el navegador.
+    anonymous_id = models.UUIDField(null=True, blank=True, db_index=True)
+    anonymous_source = models.CharField(max_length=64, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    @property
+    def is_anonymous(self):
+        return self.creator_id is None and self.anonymous_id is not None
+
     def __str__(self):
-        creator = self.creator or 'deleted user'
+        if self.creator:
+            creator = self.creator
+        elif self.anonymous_id:
+            creator = 'anonymous'
+        else:
+            creator = 'deleted user'
         return f"Observation by {creator} on {self.timestamp:%Y-%m-%d %H:%M}"
 
 class ObservationImage(models.Model):

@@ -92,6 +92,7 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
     has_observations = serializers.SerializerMethodField()
     last_observation = serializers.SerializerMethodField()
     is_private = serializers.BooleanField(required=False, default=False)
+    anonymous_token = serializers.UUIDField(read_only=True)
     raw_password = serializers.CharField(write_only=True, required=False, allow_blank=True, source="password")  # Usamos un campo virtual para la contraseña en texto plano.
 
     #NUEVALINEA (Si funciona la creación simultánea de Field_forms y Questions, borramos el comentario)
@@ -100,7 +101,7 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
 
     class Meta:
         model = Project
-        fields = ['id', 'name', 'description', 'post_observation_message', 'email_intro', 'email_subject', 'created_at', 'updated_at', 'topic', 'hasTag', 'cover', 'contributions', 'total_likes', 'is_liked_by_user', 'is_creator', 'is_admin', 'is_member', 'has_observations', 'last_observation', 'organizations', 'organizations_write', 'creator', 'administrators', 'is_private', 'raw_password', 'field_form', 'fuzzy', 'private_data', 'countries', 'is_global', 'ended', 'allowed_platforms', 'email_on_observation', 'draft', 'public_map', 'show_post_message']
+        fields = ['id', 'name', 'description', 'post_observation_message', 'email_intro', 'email_subject', 'created_at', 'updated_at', 'topic', 'hasTag', 'cover', 'contributions', 'total_likes', 'is_liked_by_user', 'is_creator', 'is_admin', 'is_member', 'has_observations', 'last_observation', 'organizations', 'organizations_write', 'creator', 'administrators', 'is_private', 'raw_password', 'field_form', 'fuzzy', 'private_data', 'countries', 'is_global', 'ended', 'allowed_platforms', 'email_on_observation', 'draft', 'public_map', 'show_post_message', 'anonymous_contribution', 'anonymous_token']
 
     def validate(self, data):
         # En creación (no hay instancia), name, description, cover y field_form son obligatorios
@@ -173,6 +174,13 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
 
         if data.get("is_private") and not data.get("password"):
             raise serializers.ValidationError({'non_field_errors': _('Debe proporcionar una contraseña si el proyecto es privado.')})
+
+        anonymous = data.get('anonymous_contribution', getattr(self.instance, 'anonymous_contribution', False))
+        is_private = data.get('is_private', getattr(self.instance, 'is_private', False))
+        if anonymous and is_private:
+            raise serializers.ValidationError({
+                'anonymous_contribution': _('La contribución anónima no está disponible en proyectos privados.')
+            })
 
         countries = data.get('countries', [])
         if countries:
@@ -401,7 +409,7 @@ class ProjectListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Project
-        fields = ['id', 'name', 'description', 'created_at', 'updated_at', 'topic', 'hasTag', 'contributions', 'total_likes', 'is_liked_by_user', 'is_creator', 'is_admin', 'is_member', 'has_observations', 'organizations', 'creator', 'administrators', 'is_private', 'fuzzy', 'private_data', 'countries', 'is_global', 'ended', 'allowed_platforms', 'draft', 'public_map', 'show_post_message', 'last_observation']
+        fields = ['id', 'name', 'description', 'created_at', 'updated_at', 'topic', 'hasTag', 'contributions', 'total_likes', 'is_liked_by_user', 'is_creator', 'is_admin', 'is_member', 'has_observations', 'organizations', 'creator', 'administrators', 'is_private', 'fuzzy', 'private_data', 'countries', 'is_global', 'ended', 'allowed_platforms', 'draft', 'public_map', 'show_post_message', 'last_observation', 'anonymous_contribution', 'anonymous_token']
 
     def get_is_liked_by_user(self, obj):
         user = self.context.get('user')

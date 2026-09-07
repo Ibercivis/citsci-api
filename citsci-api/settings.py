@@ -206,6 +206,14 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.TokenAuthentication'
     ],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    # Vacío a propósito: el throttling se declara vista a vista (de momento solo en los
+    # endpoints anónimos del QR), no queremos limitar el resto de la API.
+    'DEFAULT_THROTTLE_CLASSES': [],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon_form': '60/min',
+        'anon_submit': '20/hour',
+        'anon_submit_id': '10/hour',
+    },
 }
 
 SPECTACULAR_SETTINGS = {

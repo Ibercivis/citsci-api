@@ -1,4 +1,5 @@
 import logging
+import uuid
 logger = logging.getLogger('geonity')
 from django.utils.translation import gettext as _
 from rest_framework import viewsets
@@ -599,3 +600,19 @@ class ProjectExportView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
+
+class RegenerateAnonymousTokenView(generics.GenericAPIView):
+    """
+    POST /api/project/<pk>/regenerate-anonymous-token/
+
+    Genera un anonymous_token nuevo: los QR ya impresos dejan de funcionar.
+    Solo el creador y los administradores del proyecto.
+    """
+    queryset = Project.objects.all()
+    permission_classes = [IsAuthenticated, IsCreatorOrAdminOrReadOnly]
+
+    def post(self, request, *args, **kwargs):
+        project = self.get_object()
+        project.anonymous_token = uuid.uuid4()
+        project.save(update_fields=['anonymous_token'])
+        return Response({'anonymous_token': str(project.anonymous_token)}, status=status.HTTP_200_OK)

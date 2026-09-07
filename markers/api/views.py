@@ -1,9 +1,9 @@
-import json, csv, io
+import json, csv, io, re, uuid
 import django_rq
 from django.utils.translation import gettext as _
 from django.conf import settings
 from django.urls import reverse
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.contrib.gis.geos import Point
 from django.shortcuts import get_object_or_404
 from rest_framework.views import View
@@ -26,7 +26,9 @@ from markers.api.serializers import (
     SendObservationEmailSerializer,
     ObservationEmailLogSerializer,
 )
+from markers.api.throttles import AnonymousFormThrottle, AnonymousSubmitThrottle, AnonymousIdSubmitThrottle
 from field_forms.models import FieldForm, Question
+from field_forms.api.serializers import FieldFormSerializer
 from field_forms.translation import get_language_from_request, resolve_translation
 from project.models import Project, ProjectMembership
 
@@ -60,6 +62,135 @@ def _require_project_admin(request, project):
 def _require_project_creator(request, project):
     if not request.user or not request.user.is_authenticated or project.creator_id != request.user.id:
         raise PermissionDenied(_('Solo el creador del proyecto puede gestionar estos campos.'))
+
+def create_observation(request, field_form, *, creator=None, anonymous_id=None,
+                       anonymous_source=None, platform=None):
+    """
+    Cuerpo compartido por POST /observations/ (autenticado) y por el POST anónimo del QR.
+
+    Valida `data` contra las preguntas del formulario, guarda la observación y adjunta
+    imágenes y audios. Devuelve la Response lista para retornar desde la vista.
+    Las comprobaciones de proyecto (ended, allowed_platforms, privacidad, flag anónimo)
+    son responsabilidad de cada vista, porque difieren entre ambas.
+    """
+    data = request.data.get("data", [])
+
+    # Intentar parsear data a una lista si es una cadena de texto
+    if isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except json.JSONDecodeError:
+            return Response({"error": "La propiedad 'data' debería ser una lista JSON válida."}, status=status.HTTP_400_BAD_REQUEST)
+
+    for item in data:
+        if "key" not in item or "value" not in item:
+            return Response({"error": "Cada ítem en 'data' debe contener un 'key' y un 'value'."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Convertir data a un diccionario para facilitar la validación
+    data_dict = {item["key"]: item["value"] for item in data}
+
+    # Asegurar que todas las claves en data_dict se corresponden con ids de Pregunta en el FieldForm
+    for question_id in data_dict.keys():
+        if str(question_id).endswith('_is_other') or str(question_id).endswith('_other_text'):
+            continue
+        if not field_form.questions.filter(pk=question_id).exists():
+            return Response({"error": f"No existe una pregunta con id {question_id} en este formulario de campo."}, status=status.HTTP_400_BAD_REQUEST)
+
+    timestamp = request.data.get("timestamp", None)
+    geoposition = request.data.get("geoposition", None)
+
+    # Almacena la pregunta y la imagen/audio sin crear instancias aún
+    image_files = []
+    image_question_ids = []
+    audio_files = []
+    audio_question_ids = []
+    for field_name, file in request.FILES.items():
+        if field_name.startswith('audio_'):
+            raw_id = field_name[len('audio_'):]
+            try:
+                question = field_form.questions.get(pk=int(raw_id))
+                if question.answer_type != Question.AUDIO:
+                    return Response({"error": f"La pregunta {raw_id} no es del tipo 'Audio'."}, status=status.HTTP_400_BAD_REQUEST)
+                audio_files.append((question, file))
+                audio_question_ids.append(str(question.id))
+            except (Question.DoesNotExist, ValueError):
+                return Response({"error": f"No existe una pregunta con id {raw_id} en este formulario de campo."}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            # Acepta tanto "401" como "image_401"
+            raw_id = field_name[len('image_'):] if field_name.startswith('image_') else field_name
+            try:
+                question = field_form.questions.get(pk=int(raw_id))
+                if question.answer_type != Question.IMAGE:
+                    return Response({"error": f"La pregunta {raw_id} no es del tipo 'Imagen'."}, status=status.HTTP_400_BAD_REQUEST)
+                image_files.append((question, file))
+                image_question_ids.append(str(question.id))
+            except (Question.DoesNotExist, ValueError):
+                return Response({"error": f"No existe una pregunta con id {raw_id} en este formulario de campo."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Crear un diccionario de datos con los campos necesarios
+    observation_data = {
+        'creator': creator.id if creator is not None else None,
+        'field_form': field_form.id,
+        'timestamp': timestamp,
+        'geoposition': geoposition,
+        'data': data,
+        'platform': platform,
+    }
+
+    # Crear el serializador con los datos y el contexto
+    serializer = ObservationSerializer(data=observation_data, context={"field_form": field_form, "image_question_ids": image_question_ids, "audio_question_ids": audio_question_ids})
+    # DEBUG TEMPORAL (2026-08-24): registrar el payload cuando falla la validación. Quitar al terminar.
+    if not serializer.is_valid():
+        logger.warning(
+            "OBS_DEBUG field_form=%s user=%s anon=%s platform=%s keys=%s image_qs=%s audio_qs=%s errors=%s",
+            field_form.id,
+            creator.id if creator is not None else None,
+            anonymous_id,
+            platform,
+            sorted(str(k) for k in data_dict.keys()),
+            image_question_ids,
+            audio_question_ids,
+            serializer.errors,
+        )
+    if serializer.is_valid(raise_exception=True):
+        # anonymous_id/anonymous_source no están en el serializer a propósito: no deben
+        # poder llegar desde el body ni salir en las respuestas (ver Fase 6 del plan).
+        save_kwargs = {}
+        if anonymous_id is not None:
+            save_kwargs['anonymous_id'] = anonymous_id
+            save_kwargs['anonymous_source'] = anonymous_source
+
+        # Guardar la observación si es válida
+        observation = serializer.save(**save_kwargs)
+
+        try:
+            if field_form.project.email_on_observation:
+                queue = django_rq.get_queue('citisciapi')
+                queue.enqueue('markers.tasks.notify_admins_new_observation', observation.id, get_language_from_request(request))
+        except Exception as e:
+            logger.warning(f'Could not enqueue observation notification for observation {observation.id}: {e}')
+
+        # Ahora que la observación ha sido creada, creamos, validamos y guardamos imágenes y audios
+        for question, image in image_files:
+            img = ObservationImage(observation=observation, image=image, question=question)
+            try:
+                img.full_clean()
+                img.save()
+            except ValidationError as e:
+                return Response({"error": f"Error al guardar la imagen para la pregunta {question.id}: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        for question, audio in audio_files:
+            aud = ObservationAudio(observation=observation, audio=audio, question=question)
+            try:
+                aud.full_clean()
+                aud.save()
+            except ValidationError as e:
+                return Response({"error": f"Error al guardar el audio para la pregunta {question.id}: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Devolver 201 con la observación creada
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class ObservationListCreate(generics.ListCreateAPIView):
     queryset = Observation.objects.all()
@@ -99,104 +230,13 @@ class ObservationListCreate(generics.ListCreateAPIView):
         if project.is_private and not _is_project_member(request.user, project):
             raise PermissionDenied(_('Debes ser miembro del proyecto para enviar observaciones.'))
 
-        data = request.data.get("data", [])
+        return create_observation(
+            request,
+            field_form,
+            creator=request.user,
+            platform=client_platform,
+        )
 
-        # Intentar parsear data a una lista si es una cadena de texto
-        if isinstance(data, str):
-            try:
-                data = json.loads(data)
-            except json.JSONDecodeError:
-                return Response({"error": "La propiedad 'data' debería ser una lista JSON válida."}, status=status.HTTP_400_BAD_REQUEST)
-
-        for item in data:
-            if "key" not in item or "value" not in item:
-                return Response({"error": "Cada ítem en 'data' debe contener un 'key' y un 'value'."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Convertir data a un diccionario para facilitar la validación
-        data_dict = {item["key"]: item["value"] for item in data}
-
-        # Asegurar que todas las claves en data_dict se corresponden con ids de Pregunta en el FieldForm
-        for question_id in data_dict.keys():
-            if str(question_id).endswith('_is_other') or str(question_id).endswith('_other_text'):
-                continue
-            if not field_form.questions.filter(pk=question_id).exists():
-                return Response({"error": f"No existe una pregunta con id {question_id} en este formulario de campo."}, status=status.HTTP_400_BAD_REQUEST)
-
-        timestamp = request.data.get("timestamp", None)
-        geoposition = request.data.get("geoposition", None)
-
-        # Almacena la pregunta y la imagen/audio sin crear instancias aún
-        image_files = []
-        image_question_ids = []
-        audio_files = []
-        audio_question_ids = []
-        for field_name, file in request.FILES.items():
-            if field_name.startswith('audio_'):
-                raw_id = field_name[len('audio_'):]
-                try:
-                    question = field_form.questions.get(pk=int(raw_id))
-                    if question.answer_type != Question.AUDIO:
-                        return Response({"error": f"La pregunta {raw_id} no es del tipo 'Audio'."}, status=status.HTTP_400_BAD_REQUEST)
-                    audio_files.append((question, file))
-                    audio_question_ids.append(str(question.id))
-                except (Question.DoesNotExist, ValueError):
-                    return Response({"error": f"No existe una pregunta con id {raw_id} en este formulario de campo."}, status=status.HTTP_400_BAD_REQUEST)
-            else:
-                # Acepta tanto "401" como "image_401"
-                raw_id = field_name[len('image_'):] if field_name.startswith('image_') else field_name
-                try:
-                    question = field_form.questions.get(pk=int(raw_id))
-                    if question.answer_type != Question.IMAGE:
-                        return Response({"error": f"La pregunta {raw_id} no es del tipo 'Imagen'."}, status=status.HTTP_400_BAD_REQUEST)
-                    image_files.append((question, file))
-                    image_question_ids.append(str(question.id))
-                except (Question.DoesNotExist, ValueError):
-                    return Response({"error": f"No existe una pregunta con id {raw_id} en este formulario de campo."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Crear un diccionario de datos con los campos necesarios
-        observation_data = {
-            'creator': request.user.id,
-            'field_form': field_form.id,
-            'timestamp': timestamp,
-            'geoposition': geoposition,
-            'data': data,
-            'platform': getattr(request, 'client_platform', None),
-        }
-
-        # Crear el serializador con los datos y el contexto
-        serializer = ObservationSerializer(data=observation_data, context={"field_form": field_form, "image_question_ids": image_question_ids, "audio_question_ids": audio_question_ids})
-        if serializer.is_valid(raise_exception=True):
-            # Guardar la observación si es válida
-            observation = serializer.save()
-
-            try:
-                if field_form.project.email_on_observation:
-                    queue = django_rq.get_queue('citisciapi')
-                    queue.enqueue('markers.tasks.notify_admins_new_observation', observation.id, get_language_from_request(request))
-            except Exception as e:
-                logger.warning(f'Could not enqueue observation notification for observation {observation.id}: {e}')
-
-            # Ahora que la observación ha sido creada, creamos, validamos y guardamos imágenes y audios
-            for question, image in image_files:
-                img = ObservationImage(observation=observation, image=image, question=question)
-                try:
-                    img.full_clean()
-                    img.save()
-                except ValidationError as e:
-                    return Response({"error": f"Error al guardar la imagen para la pregunta {question.id}: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-
-            for question, audio in audio_files:
-                aud = ObservationAudio(observation=observation, audio=audio, question=question)
-                try:
-                    aud.full_clean()
-                    aud.save()
-                except ValidationError as e:
-                    return Response({"error": f"Error al guardar el audio para la pregunta {question.id}: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-
-            # Devolver 201 con la observación creada
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
 class ObservationRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = ObservationWithPublicAdminSerializer
@@ -215,7 +255,14 @@ class ObservationRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
 
     def delete(self, request, *args, **kwargs):
         observation = self.get_object()
-        if observation.creator != request.user:
+        # Una observación anónima no tiene dueño: si no pudiera borrarla el admin del
+        # proyecto, nadie podría. Sobre las de usuarios registrados no cambia nada.
+        is_anonymous = observation.creator_id is None
+        can_delete = (
+            observation.creator == request.user
+            or (is_anonymous and _is_project_admin(request.user, observation.field_form.project))
+        )
+        if not can_delete:
             return Response({"error": "No tienes permiso para eliminar esta observación."}, status=status.HTTP_403_FORBIDDEN)
 
         observation.delete()
@@ -749,7 +796,7 @@ class DownloadObservationsCSV(generics.GenericAPIView):
         lang = get_language_from_request(request)
         header = ['ID', 'Timestamp', 'Latitude', 'Longitude'] + [
             resolve_translation(question.question_text, lang) for question in questions
-        ]
+        ] + ['Anonymous ID', 'Anonymous source']
 
         rows = []
         for observation in observations:
@@ -782,6 +829,11 @@ class DownloadObservationsCSV(generics.GenericAPIView):
 
             for question in questions:
                 row.append(data_dict.get(question.id, ''))
+
+            # Solo un prefijo del anonymous_id: suficiente para agrupar envíos del mismo
+            # navegador en el análisis, inútil para reclamar sus observaciones.
+            row.append(str(observation.anonymous_id)[:8] if observation.anonymous_id else '')
+            row.append(observation.anonymous_source or '')
 
             rows.append(row)
 
@@ -1200,3 +1252,186 @@ class ObservationEmailLogListView(generics.ListAPIView):
         )
         _require_project_admin(self.request, observation.field_form.project)
         return ObservationEmailLog.objects.filter(observation=observation).order_by('-created_at')
+
+# ---------------------------------------------------------------------------
+# Contribución anónima por QR
+# ---------------------------------------------------------------------------
+
+ANONYMOUS_SOURCE_RE = re.compile(r'[^\w.-]', re.UNICODE)
+ANONYMOUS_MAX_IMAGES = 3
+ANONYMOUS_MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
+def _get_anonymous_project(token):
+    """
+    Resuelve el proyecto de un anonymous_token y comprueba que admite contribución anónima.
+
+    Devuelve (project, field_form). Lanza Http404 en cualquier caso que no valga: así el
+    404 no distingue entre "no existe" y "existe pero no acepta anónimos".
+
+    Los borradores SÍ valen: publicar exige más de 10 observaciones, así que es justo en
+    borrador cuando hace falta el QR para reunirlas. El proyecto no se expone por ello:
+    el token es un UUID que no se puede adivinar y el borrador sigue sin listarse.
+    """
+    try:
+        project = Project.objects.prefetch_related('covers', 'organizations').get(anonymous_token=token)
+    except (Project.DoesNotExist, ValidationError, ValueError):
+        raise Http404
+
+    if not project.anonymous_contribution or project.is_private or project.ended:
+        raise Http404
+
+    try:
+        field_form = project.fieldform
+    except FieldForm.DoesNotExist:
+        raise Http404
+
+    return project, field_form
+
+
+def _get_anonymous_id(request):
+    """UUID de la cabecera X-Anonymous-Id, o None si falta o no es un UUID válido."""
+    raw = (request.headers.get('X-Anonymous-Id') or '').strip()
+    if not raw:
+        return None
+    try:
+        return uuid.UUID(raw)
+    except (ValueError, AttributeError, TypeError):
+        return None
+
+
+def _get_anonymous_source(request):
+    """Etiqueta del cartel/QR concreto (?src=), saneada y recortada a 64 caracteres."""
+    raw = request.query_params.get('src') or request.data.get('source') or ''
+    if not isinstance(raw, str):
+        return None
+    cleaned = ANONYMOUS_SOURCE_RE.sub('', raw.strip())[:64]
+    return cleaned or None
+
+
+class AnonymousProjectInfoView(generics.GenericAPIView):
+    """
+    GET /api/anonymous/<token>/
+
+    Landing del QR: datos mínimos del proyecto y el formulario de campo, sin sesión.
+    El formulario viene con el mismo formato que GET /field_form/<id>/ para que el
+    front reutilice sus componentes.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [AnonymousFormThrottle]
+
+    def get(self, request, token, *args, **kwargs):
+        project, field_form = _get_anonymous_project(token)
+        lang = get_language_from_request(request)
+
+        cover = project.covers.first()
+        cover_url = request.build_absolute_uri(cover.image.url) if cover and cover.image else None
+        organizations = [
+            {
+                'id': org.id,
+                'name': org.principalName,
+                'logo': request.build_absolute_uri(org.logo.url) if org.logo else None,
+            }
+            for org in project.organizations.all()
+        ]
+
+        return Response({
+            'project': {
+                'id': project.id,
+                'name': resolve_translation(project.name, lang) if isinstance(project.name, dict) else project.name,
+                'description': resolve_translation(project.description, lang),
+                'cover': cover_url,
+                'organizations': organizations,
+                'post_observation_message': resolve_translation(project.post_observation_message, lang) if project.post_observation_message else '',
+                'show_post_message': project.show_post_message,
+                'allowed_platforms': project.allowed_platforms,
+            },
+            'field_form': FieldFormSerializer(field_form, context={'request': request}).data,
+        })
+
+
+class AnonymousObservationCreateView(generics.GenericAPIView):
+    """
+    POST /api/anonymous/<token>/observations/
+
+    Alta de observación sin cuenta. Mismo body que POST /observations/ salvo que el
+    field_form es implícito (lo fija el token) y hace falta la cabecera X-Anonymous-Id.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    parser_classes = (MultiPartParser, FormParser)
+    throttle_classes = [AnonymousSubmitThrottle, AnonymousIdSubmitThrottle]
+
+    def post(self, request, token, *args, **kwargs):
+        project, field_form = _get_anonymous_project(token)
+
+        # La contribución anónima siempre cuenta como 'web'
+        if project.allowed_platforms not in (Project.PLATFORM_ALL, Project.PLATFORM_WEB):
+            return Response(
+                {"error": f"This project only accepts observations from {project.allowed_platforms}."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        anonymous_id = _get_anonymous_id(request)
+        if anonymous_id is None:
+            return Response(
+                {"error": _('Falta la cabecera X-Anonymous-Id o no es un UUID válido.')},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        image_count = 0
+        for field_name, file in request.FILES.items():
+            if file.size > ANONYMOUS_MAX_FILE_SIZE:
+                return Response(
+                    {"error": _('Cada archivo debe ocupar menos de %(mb)s MB.') % {'mb': ANONYMOUS_MAX_FILE_SIZE // (1024 * 1024)}},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if not field_name.startswith('audio_'):
+                image_count += 1
+        if image_count > ANONYMOUS_MAX_IMAGES:
+            return Response(
+                {"error": _('Máximo %(n)s imágenes por observación anónima.') % {'n': ANONYMOUS_MAX_IMAGES}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return create_observation(
+            request,
+            field_form,
+            creator=None,
+            anonymous_id=anonymous_id,
+            anonymous_source=_get_anonymous_source(request),
+            platform=Observation.PLATFORM_WEB,
+        )
+
+
+class AnonymousMyObservationsView(generics.ListAPIView):
+    """
+    GET /api/anonymous/<token>/observations/mine/
+
+    Lo que ha enviado este navegador a este proyecto. Solo lectura: sin edición ni borrado.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    serializer_class = ObservationSerializer
+    throttle_classes = [AnonymousFormThrottle]
+    pagination_class = None
+
+    def list(self, request, *args, **kwargs):
+        project, field_form = _get_anonymous_project(self.kwargs['token'])
+
+        anonymous_id = _get_anonymous_id(request)
+        if anonymous_id is None:
+            return Response(
+                {"error": _('Falta la cabecera X-Anonymous-Id o no es un UUID válido.')},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        observations = Observation.objects.filter(
+            field_form=field_form,
+            anonymous_id=anonymous_id,
+            creator__isnull=True,
+        ).prefetch_related('images', 'audios', 'email_logs').order_by('-timestamp')
+
+        serializer = self.get_serializer(observations, many=True)
+        return Response(serializer.data)

@@ -151,10 +151,16 @@ class ObservationSerializer(serializers.ModelSerializer):
     email_count = serializers.SerializerMethodField()
     has_observation_email = serializers.SerializerMethodField()
     has_plain_email = serializers.SerializerMethodField()
+    is_anonymous = serializers.SerializerMethodField()
 
     class Meta:
         model = Observation
-        fields = ['id', 'creator', 'field_form', 'timestamp', 'geoposition', 'data', 'platform', 'created_at', 'updated_at', 'images', 'audios', 'email_count', 'has_observation_email', 'has_plain_email']
+        # anonymous_id no se expone nunca: es el pseudónimo con el que un navegador
+        # podrá reclamar sus observaciones, y publicarlo permitiría robarlas.
+        fields = ['id', 'creator', 'field_form', 'timestamp', 'geoposition', 'data', 'platform', 'created_at', 'updated_at', 'images', 'audios', 'email_count', 'has_observation_email', 'has_plain_email', 'is_anonymous']
+
+    def get_is_anonymous(self, obj):
+        return obj.creator_id is None and obj.anonymous_id is not None
 
     def get_email_count(self, obj):
         # Una sola pasada sobre el caché de prefetch (email_logs se prefetchea en ObservationByFieldFormList)
@@ -248,6 +254,8 @@ class ObservationWithPublicAdminSerializer(ObservationSerializer):
         request = self.context.get('request')
         if not request or not request.user.is_authenticated:
             return False
+        if obj.creator_id is None:
+            return False  # las anónimas no son de nadie
         return obj.creator_id == request.user.id
 
 

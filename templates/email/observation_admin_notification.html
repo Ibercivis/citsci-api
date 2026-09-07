@@ -24,8 +24,13 @@
           {% blocktrans with lat=lat lng=lng %}Coordenadas: {{ lat }}, {{ lng }}{% endblocktrans %}
         </p>
         {% if address %}
-        <p style="margin:0;font-size:14px;line-height:1.6;color:#6b7585;">
+        <p style="margin:0 0 8px 0;font-size:14px;line-height:1.6;color:#6b7585;">
           {% blocktrans with addr=address %}Dirección: {{ addr }}{% endblocktrans %}
+        </p>
+        {% endif %}
+        {% if is_anonymous %}
+        <p style="margin:0;font-size:14px;line-height:1.6;color:#6b7585;">
+          {% trans "Contribución anónima" %}
         </p>
         {% endif %}
       </td>

@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 from django.db.models import ImageField
 from django.conf import settings
@@ -50,6 +52,10 @@ class Project(models.Model):
     draft = models.BooleanField(default=True)
     public_map = models.BooleanField(default=False)
     show_post_message = models.BooleanField(default=False)
+    # Contribucion anonima por QR: cualquiera puede enviar observaciones sin cuenta.
+    # anonymous_token es lo que viaja en la URL del QR (en vez del pk, que es adivinable).
+    anonymous_contribution = models.BooleanField(default=False)
+    anonymous_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     last_observation = models.DateTimeField(null=True, blank=True, default=None)
 
     PLATFORM_ALL = 'all'

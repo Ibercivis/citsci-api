@@ -71,6 +71,7 @@ def notify_admins_new_observation(observation_id, lang='es'):
                 'lng': round(lng, 6),
                 'address': address,
                 'message': custom_message,
+                'is_anonymous': observation.creator_id is None,
             }
             html_body = render_to_string('email/observation_admin_notification.html', context)
             text_body = (
@@ -82,6 +83,8 @@ def notify_admins_new_observation(observation_id, lang='es'):
             )
             if address:
                 text_body += f'{translation.gettext("Dirección")}: {address}\n'
+            if observation.creator_id is None:
+                text_body += f'{translation.gettext("Contribución anónima")}\n'
             if custom_message:
                 text_body += f'\n{custom_message}'
         for recipient in recipients:
