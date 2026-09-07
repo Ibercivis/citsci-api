@@ -28,7 +28,6 @@ from markers.api.serializers import (
 )
 from markers.api.throttles import AnonymousFormThrottle, AnonymousSubmitThrottle, AnonymousIdSubmitThrottle
 from field_forms.models import FieldForm, Question
-from field_forms.api.serializers import FieldFormSerializer
 from field_forms.translation import get_language_from_request, resolve_translation
 from project.models import Project, ProjectMembership
 
@@ -1300,6 +1299,44 @@ def _get_anonymous_id(request):
         return None
 
 
+def _translatable(value, lang, raw):
+    """
+    Un campo traducible tal y como lo espera el consumidor.
+
+    Con `?raw=true` devuelve el dict multilingüe entero, para que el front pueda
+    elegir idioma él mismo; sin él, la cadena ya resuelta por `Accept-Language`.
+    Algunos campos (`Project.name`) guardan el dict serializado como texto.
+    """
+    if not raw:
+        return resolve_translation(value, lang)
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except (ValueError, TypeError):
+            return value
+        return parsed if isinstance(parsed, dict) else value
+    return value
+
+
+def _anonymous_question(question, lang, raw):
+    choices = question.choices
+    if choices:
+        choices = [
+            {**c, 'label': _translatable(c['label'], lang, raw)} if isinstance(c, dict) and 'label' in c else c
+            for c in choices
+        ]
+    return {
+        'id': question.id,
+        'question_text': _translatable(question.question_text, lang, raw),
+        'question_help': _translatable(question.question_help, lang, raw) or None,
+        'answer_type': question.answer_type,
+        'mandatory': question.mandatory,
+        'order': question.order,
+        'allow_other': question.allow_other,
+        'choices': choices or None,
+    }
+
+
 def _get_anonymous_source(request):
     """Etiqueta del cartel/QR concreto (?src=), saneada y recortada a 64 caracteres."""
     raw = request.query_params.get('src') or request.data.get('source') or ''
@@ -1312,10 +1349,11 @@ def _get_anonymous_source(request):
 class AnonymousProjectInfoView(generics.GenericAPIView):
     """
     GET /api/anonymous/<token>/
+    GET /api/anonymous/<token>/?raw=true
 
-    Landing del QR: datos mínimos del proyecto y el formulario de campo, sin sesión.
-    El formulario viene con el mismo formato que GET /field_form/<id>/ para que el
-    front reutilice sus componentes.
+    Landing del QR: proyecto y preguntas del formulario, sin sesión. Payload plano,
+    con `field_form` como id y las preguntas en la raíz. Con `?raw=true` los campos
+    traducibles salen como dict multilingüe en vez de resueltos a texto.
     """
     permission_classes = [AllowAny]
     authentication_classes = []
@@ -1324,30 +1362,33 @@ class AnonymousProjectInfoView(generics.GenericAPIView):
     def get(self, request, token, *args, **kwargs):
         project, field_form = _get_anonymous_project(token)
         lang = get_language_from_request(request)
+        raw = request.query_params.get('raw') == 'true'
 
         cover = project.covers.first()
         cover_url = request.build_absolute_uri(cover.image.url) if cover and cover.image else None
         organizations = [
             {
                 'id': org.id,
-                'name': org.principalName,
+                'principalName': org.principalName,
                 'logo': request.build_absolute_uri(org.logo.url) if org.logo else None,
             }
             for org in project.organizations.all()
         ]
 
         return Response({
-            'project': {
-                'id': project.id,
-                'name': resolve_translation(project.name, lang) if isinstance(project.name, dict) else project.name,
-                'description': resolve_translation(project.description, lang),
-                'cover': cover_url,
-                'organizations': organizations,
-                'post_observation_message': resolve_translation(project.post_observation_message, lang) if project.post_observation_message else '',
-                'show_post_message': project.show_post_message,
-                'allowed_platforms': project.allowed_platforms,
-            },
-            'field_form': FieldFormSerializer(field_form, context={'request': request}).data,
+            'id': project.id,
+            'name': _translatable(project.name, lang, raw),
+            'description': _translatable(project.description, lang, raw),
+            'cover': cover_url,
+            'organizations': organizations,
+            'field_form': field_form.id,
+            'questions': [
+                _anonymous_question(q, lang, raw)
+                for q in field_form.questions.all()
+            ],
+            'post_observation_message': _translatable(project.post_observation_message, lang, raw),
+            'show_post_message': project.show_post_message,
+            'allowed_platforms': project.allowed_platforms,
         })
 
 

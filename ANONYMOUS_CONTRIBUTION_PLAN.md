@@ -49,7 +49,8 @@ Lo que bloquea hoy:
 ## Fase 2 — Serializers de proyecto
 - [x] Añadir `anonymous_contribution` y `anonymous_token` (read-only) a
       `ProjectSerializerCreateUpdate.Meta.fields` (`project/api/serializers.py:103`) y a
-      `ProjectListSerializer.Meta.fields` (`:404`).
+      `ProjectListSerializer.Meta.fields` (`:404`). `anonymous_token` solo lo ven creador y
+      administradores; para el resto es `null` (ver nota abajo).
 - [x] Validación: rechazar `anonymous_contribution=True` si `is_private=True`. Primera iteración:
       no mezclamos anónimo con privado.
 - [x] Endpoint `POST /api/project/<pk>/regenerate-anonymous-token/` con `IsCreatorOrAdminOrReadOnly`
@@ -170,6 +171,18 @@ Detalles que se decidieron sobre la marcha:
 - `ObservationRetrieveUpdateDestroy.delete` ahora deja borrar a los administradores del proyecto
   **solo** las observaciones anónimas: sin dueño, si no nadie podría borrarlas. Sobre las de
   usuarios registrados no cambia nada.
+- **`anonymous_token` no es público.** El plan lo metía tal cual en los dos serializers, y eso
+  lo dejaba visible sin autenticar en `GET /api/project/`: cualquiera podía sacar la URL de
+  contribución de todos los proyectos con el flag activo sin haber visto el cartel, que es
+  justo lo que el token venía a evitar. Ahora es un `SerializerMethodField` que devuelve el
+  token a creador y administradores y `null` al resto.
+- **La landing devuelve un payload plano**, no `{project, field_form}`: `id`, `name`,
+  `description`, `cover`, `organizations`, `field_form` (id), `questions`,
+  `post_observation_message`, `show_post_message` y `allowed_platforms`. Es el formato que ya
+  esperaba el front. `?raw=true` devuelve los campos traducibles como dict multilingüe
+  (`name`, `description`, `post_observation_message`, `question_text`, `question_help` y
+  `choices[].label`); sin él, resueltos por `Accept-Language`. Ojo: `?raw=true` en
+  `GET /field_form/<id>/` sigue afectando solo a `choices[].label`, no lo he tocado.
 - **`draft` sí acepta contribución anónima**, al revés de lo que decía el plan. Se cambió al
   probarlo en producción: publicar exige más de 10 observaciones, así que el borrador es justo la
   fase en la que hace falta el QR para reunirlas. Con la regla original el flujo se quedaba

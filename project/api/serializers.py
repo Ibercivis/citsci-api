@@ -59,6 +59,30 @@ class ProjectCoverSerializer(serializers.ModelSerializer):
         model = ProjectCover
         fields = ['image']
 
+def _context_user(serializer):
+    """El usuario del contexto; algunas vistas solo pasan el request."""
+    user = serializer.context.get('user')
+    if user is None:
+        user = getattr(serializer.context.get('request'), 'user', None)
+    return user
+
+
+def _anonymous_token_for(serializer, obj):
+    """
+    El token del QR solo lo ven creador y administradores.
+
+    Es lo único que hace que la URL de contribución anónima no se pueda adivinar:
+    si saliera en el listado público de proyectos, cualquiera podría sacar la URL
+    de todos los proyectos con el flag activo sin haber visto el cartel.
+    """
+    user = _context_user(serializer)
+    if not user or not user.is_authenticated:
+        return None
+    if obj.creator_id == user.id or any(a.id == user.id for a in obj.administrators.all()):
+        return str(obj.anonymous_token)
+    return None
+
+
 class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
     hasTag = serializers.PrimaryKeyRelatedField(
         queryset=HasTag.objects.all(),
@@ -92,7 +116,7 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
     has_observations = serializers.SerializerMethodField()
     last_observation = serializers.SerializerMethodField()
     is_private = serializers.BooleanField(required=False, default=False)
-    anonymous_token = serializers.UUIDField(read_only=True)
+    anonymous_token = serializers.SerializerMethodField()
     raw_password = serializers.CharField(write_only=True, required=False, allow_blank=True, source="password")  # Usamos un campo virtual para la contraseña en texto plano.
 
     #NUEVALINEA (Si funciona la creación simultánea de Field_forms y Questions, borramos el comentario)
@@ -222,6 +246,9 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
 
     def get_last_observation(self, obj):
         return obj.last_observation
+
+    def get_anonymous_token(self, obj):
+        return _anonymous_token_for(self, obj)
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
@@ -406,6 +433,7 @@ class ProjectListSerializer(serializers.ModelSerializer):
     is_admin = serializers.SerializerMethodField()
     is_member = serializers.SerializerMethodField()
     has_observations = serializers.SerializerMethodField()
+    anonymous_token = serializers.SerializerMethodField()
 
     class Meta:
         model = Project
@@ -440,6 +468,9 @@ class ProjectListSerializer(serializers.ModelSerializer):
             return obj.fieldform.observations.exists()
         except Exception:
             return False
+
+    def get_anonymous_token(self, obj):
+        return _anonymous_token_for(self, obj)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

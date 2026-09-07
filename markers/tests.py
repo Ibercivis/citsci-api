@@ -98,12 +98,41 @@ class AnonymousContributionTests(APITestCase):
 
     # -- GET landing -----------------------------------------------------
 
-    def test_info_returns_project_and_form(self):
+    def test_info_returns_flat_payload(self):
         response = self.client.get(self.info_url())
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['project']['name'], 'Proyecto QR')
-        question_ids = [q['id'] for q in response.data['field_form']['questions']]
+        self.assertEqual(response.data['id'], self.project.id)
+        self.assertEqual(response.data['name'], 'Proyecto QR')
+        # field_form es el id, y las preguntas cuelgan de la raíz
+        self.assertEqual(response.data['field_form'], self.field_form.id)
+        question_ids = [q['id'] for q in response.data['questions']]
         self.assertEqual(question_ids, [self.q_text.id, self.q_choice.id, self.q_mchoice.id])
+        self.assertEqual(response.data['show_post_message'], self.project.show_post_message)
+
+    def test_info_resolves_or_keeps_translations(self):
+        self.project.name = json.dumps({'es': 'Proyecto QR', 'en': 'QR project'})
+        self.project.save(update_fields=['name'])
+        self.q_text.question_text = {'es': '¿Qué has visto?', 'en': 'What did you see?'}
+        self.q_text.save(update_fields=['question_text'])
+
+        resolved = self.client.get(self.info_url(), HTTP_ACCEPT_LANGUAGE='es').data
+        self.assertEqual(resolved['name'], 'Proyecto QR')
+        self.assertEqual(resolved['questions'][0]['question_text'], '¿Qué has visto?')
+        self.assertEqual(resolved['questions'][1]['choices'][0]['label'], 'Bueno')
+
+        raw = self.client.get(self.info_url() + '?raw=true').data
+        self.assertEqual(raw['name'], {'es': 'Proyecto QR', 'en': 'QR project'})
+        self.assertEqual(raw['questions'][0]['question_text'], {'es': '¿Qué has visto?', 'en': 'What did you see?'})
+        self.assertEqual(raw['questions'][1]['choices'][0]['label'], {'default': 'Bueno'})
+
+    def test_info_question_shape(self):
+        question = self.client.get(self.info_url()).data['questions'][1]
+        self.assertEqual(
+            sorted(question.keys()),
+            ['allow_other', 'answer_type', 'choices', 'id', 'mandatory', 'order', 'question_help', 'question_text'],
+        )
+        self.assertEqual(question['choices'][0]['value'], 'bueno')
+        self.assertIsNone(question['question_help'])
 
     def test_info_404_when_flag_off(self):
         self.project.anonymous_contribution = False
@@ -269,6 +298,31 @@ class AnonymousContributionTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('anonymous_contribution', response.data)
+
+    # -- El token del QR no es público --------------------------------------
+
+    def test_anonymous_token_only_visible_to_creator_and_admins(self):
+        url = reverse('project_retrieve_update_destroy', args=[self.project.id])
+        expected = str(self.project.anonymous_token)
+
+        self.assertIsNone(self.client.get(url).data['anonymous_token'])
+
+        self.client.force_authenticate(user=self.other)
+        self.assertIsNone(self.client.get(url).data['anonymous_token'])
+
+        self.client.force_authenticate(user=self.owner)
+        self.assertEqual(self.client.get(url).data['anonymous_token'], expected)
+
+        self.project.administrators.add(self.other)
+        self.client.force_authenticate(user=self.other)
+        self.assertEqual(self.client.get(url).data['anonymous_token'], expected)
+
+    def test_anonymous_token_hidden_in_public_project_list(self):
+        response = self.client.get(reverse('project_list_create'))
+        items = response.data['results'] if isinstance(response.data, dict) and 'results' in response.data else response.data
+        ours = next(p for p in items if p['id'] == self.project.id)
+        self.assertTrue(ours['anonymous_contribution'])
+        self.assertIsNone(ours['anonymous_token'])
 
     # -- La vista autenticada no se relaja ---------------------------------
 
