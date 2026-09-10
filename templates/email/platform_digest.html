@@ -1,0 +1,61 @@
+{% extends "email/base.html" %}
+{% load i18n %}
+
+{% block subject %}{{ subject }}{% endblock %}
+
+{% block content %}
+  <h1 style="margin:0 0 8px 0;font-size:24px;font-weight:700;color:#111827;">
+    {% blocktrans %}Resumen {{ period_label }}{% endblocktrans %}
+  </h1>
+  <p style="margin:0 0 24px 0;font-size:14px;color:#6b7585;">
+    {% blocktrans %}Del {{ since }} al {{ until }} ({{ days }} días){% endblocktrans %}
+  </p>
+
+  <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
+    <tr>
+      <td width="50%" style="padding:12px;background-color:#f0f2f8;border-radius:8px;">
+        <p style="margin:0;font-size:28px;font-weight:700;color:#111827;">{{ new_projects }}</p>
+        <p style="margin:4px 0 0 0;font-size:13px;color:#6b7585;">{% trans "proyectos nuevos" %}</p>
+      </td>
+      <td width="8"></td>
+      <td width="50%" style="padding:12px;background-color:#f0f2f8;border-radius:8px;">
+        <p style="margin:0;font-size:28px;font-weight:700;color:#111827;">{{ published_projects }}</p>
+        <p style="margin:4px 0 0 0;font-size:13px;color:#6b7585;">{% trans "publicados" %}</p>
+      </td>
+    </tr>
+    <tr><td colspan="3" height="8"></td></tr>
+    <tr>
+      <td style="padding:12px;background-color:#f0f2f8;border-radius:8px;">
+        <p style="margin:0;font-size:28px;font-weight:700;color:#111827;">{{ new_observations }}</p>
+        <p style="margin:4px 0 0 0;font-size:13px;color:#6b7585;">{% trans "observaciones nuevas" %}</p>
+      </td>
+      <td width="8"></td>
+      <td style="padding:12px;background-color:#f0f2f8;border-radius:8px;">
+        <p style="margin:0;font-size:28px;font-weight:700;color:#111827;">{{ new_users }}</p>
+        <p style="margin:4px 0 0 0;font-size:13px;color:#6b7585;">{% trans "usuarios nuevos" %}</p>
+      </td>
+    </tr>
+  </table>
+
+  <h2 style="margin:0 0 12px 0;font-size:16px;font-weight:700;color:#111827;">{% trans "Totales" %}</h2>
+  <p style="margin:0 0 24px 0;font-size:15px;line-height:1.8;color:#6b7585;">
+    {% blocktrans %}{{ total_projects }} proyectos, de los que {{ total_published }} están publicados y {{ active_30d }} han recibido observaciones en los últimos 30 días.{% endblocktrans %}<br>
+    {% blocktrans %}{{ total_observations }} observaciones en total y {{ total_users }} usuarios registrados.{% endblocktrans %}
+  </p>
+
+  {% if top_projects %}
+  <h2 style="margin:0 0 12px 0;font-size:16px;font-weight:700;color:#111827;">{% trans "Proyectos con más actividad" %}</h2>
+  <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:24px;">
+    {% for p in top_projects %}
+    <tr>
+      <td style="padding:8px 0;border-bottom:1px solid #e2e5ed;font-size:14px;color:#111827;">{{ p.name }}</td>
+      <td align="right" style="padding:8px 0;border-bottom:1px solid #e2e5ed;font-size:14px;color:#6b7585;">{{ p.observations }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  <p style="margin:0;">
+    <a href="https://geonity.ibercivis.es" style="display:inline-block;background-color:#2563eb;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:15px;font-weight:600;">{% trans "Abrir Geonity" %}</a>
+  </p>
+{% endblock %}

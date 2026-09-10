@@ -176,10 +176,18 @@ def timeseries(queryset, field, since, until, granularity='month'):
     return series, cumulative
 
 
-def top_projects(project_qs, lang='es', limit=10):
+def top_projects(project_qs, lang='es', limit=10, since=None):
+    """
+    Con `since`, cuenta solo las observaciones a partir de esa fecha (para "actividad del periodo").
+
+    El filtro va dentro del Count a proposito. Filtrar el queryset y anotar despues tambien
+    funcionaria, porque Django reutiliza el JOIN, pero eso es un efecto sutil que se rompe si
+    alguien reordena el codigo sin saberlo.
+    """
+    count_filter = Q(fieldform__observations__created_at__gte=since) if since else Q()
     rows = (
         project_qs
-        .annotate(observations=Count('fieldform__observations'))
+        .annotate(observations=Count('fieldform__observations', filter=count_filter))
         .filter(observations__gt=0)
         .order_by('-observations', 'id')
         .values('id', 'name', 'observations', 'draft', 'ended')[:limit]

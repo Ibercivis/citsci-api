@@ -84,20 +84,20 @@ def send_platform_notification(event, period_key, context, lang='es'):
         logger.warning(f'Aviso {event} {period_key} sin destinatarios configurados')
         return
 
+    _deliver(log, subject, 'email/platform_notification.html', context, recipients, lang,
+             text_body=_text_body(context))
+
+
+def _deliver(log, subject, template, context, recipients, lang, text_body=''):
+    """Renderiza, envia y deja el resultado en el NotificationLog. Compartido por avisos y resumen."""
     log.subject = subject
     log.recipients = recipients
-
     try:
         with translation.override(lang):
-            html_body = render_to_string('email/platform_notification.html', {
-                'subject': subject,
-                'event': event,
-                **context,
-            })
-        text_body = _text_body(context)
+            html_body = render_to_string(template, {'subject': subject, **context})
         message = EmailMultiAlternatives(
             subject=subject,
-            body=text_body,
+            body=text_body or subject,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=recipients,
         )
@@ -107,11 +107,52 @@ def send_platform_notification(event, period_key, context, lang='es'):
         log.status = NotificationLog.STATUS_FAILED
         log.error = str(exc)
         log.save(update_fields=['status', 'error', 'subject', 'recipients'])
-        logger.error(f'Aviso {event} {period_key} fallo: {exc}')
+        logger.error(f'Envio {log.event} {log.period_key} fallo: {exc}')
         raise
 
     log.status = NotificationLog.STATUS_SENT
     log.sent_at = timezone.now()
     log.error = ''
     log.save(update_fields=['status', 'sent_at', 'error', 'subject', 'recipients'])
-    logger.info(f'Aviso {event} {period_key} enviado a {recipients}')
+    logger.info(f'Envio {log.event} {log.period_key} enviado a {recipients}')
+
+
+def send_digest(period='fortnightly', lang='es'):
+    """
+    Resumen periodico. Lo llama el scheduler; el trabajo de verdad se puede lanzar tambien a mano
+    con `manage.py send_stats_digest`, que es lo que lo hace testeable sin tocar Redis.
+    """
+    from stats.digest import DIGEST_EVENT, build_digest_context, digest_period_key
+
+    context = build_digest_context(period, lang=lang)
+    period_key = digest_period_key(context)
+    subject = (f'[Geonity] Resumen {context["period_label"]} '
+               f'({context["since"]} a {context["until"]})')
+
+    log, created = NotificationLog.objects.get_or_create(
+        event=DIGEST_EVENT, period_key=period_key, defaults={'subject': subject})
+    if not created and log.status == NotificationLog.STATUS_SENT:
+        logger.info(f'Resumen {period_key} ya enviado, no se repite')
+        return
+
+    recipients = list(settings.PLATFORM_NOTIFICATION_EMAILS)
+    if not recipients:
+        log.status = NotificationLog.STATUS_FAILED
+        log.error = 'PLATFORM_NOTIFICATION_EMAILS esta vacio'
+        log.save(update_fields=['status', 'error'])
+        logger.warning(f'Resumen {period_key} sin destinatarios configurados')
+        return
+
+    text_body = (
+        f'Resumen {context["period_label"]} de Geonity\n'
+        f'Periodo: {context["since"]} a {context["until"]} ({context["days"]} dias)\n\n'
+        f'Proyectos nuevos: {context["new_projects"]}\n'
+        f'Proyectos publicados: {context["published_projects"]}\n'
+        f'Observaciones nuevas: {context["new_observations"]}\n'
+        f'Usuarios nuevos: {context["new_users"]}\n\n'
+        f'Totales: {context["total_projects"]} proyectos ({context["total_published"]} publicados, '
+        f'{context["active_30d"]} activos en 30 dias), {context["total_observations"]} observaciones, '
+        f'{context["total_users"]} usuarios.\n'
+    )
+    _deliver(log, subject, 'email/platform_digest.html', context, recipients, lang,
+             text_body=text_body)

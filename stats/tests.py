@@ -1,8 +1,10 @@
 from datetime import timedelta
+from io import StringIO
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.core import mail
+from django.core.management import call_command
 from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -15,7 +17,8 @@ from markers.models import Observation
 from project.models import Project
 from stats import metrics
 from stats.models import NotificationLog
-from stats.tasks import send_platform_notification
+from stats.digest import build_digest_context, digest_window
+from stats.tasks import send_digest, send_platform_notification
 
 # La cache por defecto es el Redis de produccion: los tests usan locmem para no escribir ahi ni
 # arrastrar estado entre ejecuciones. Vale tambien para el throttle, que se apoya en la cache.
@@ -482,3 +485,163 @@ class QueueIsolationTests(TestCase):
     def test_the_queue_points_to_a_scratch_redis_db_while_testing(self):
         from django.conf import settings
         self.assertEqual(settings.RQ_QUEUES['citisciapi']['DB'], 15)
+
+
+@override_settings(
+    CACHES=TEST_CACHES,
+    EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+    PLATFORM_NOTIFICATION_EMAILS=['uno@example.com'],
+)
+class DigestTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.creator = User.objects.create_user(username='digestera', email='d@example.com')
+        cls.project = _make_project(cls.creator, 'Con actividad')
+        cls.now = timezone.now()
+        _make_observation(cls.project, created_at=cls.now - timedelta(days=3))
+        _make_observation(cls.project, created_at=cls.now - timedelta(days=100))
+
+    def setUp(self):
+        mail.outbox = []
+
+    def test_window_falls_back_to_the_nominal_period_when_there_is_no_previous_digest(self):
+        since, until = digest_window('fortnightly', now=self.now)
+        self.assertEqual((until - since).days, 15)
+        since, until = digest_window('month', now=self.now)
+        self.assertEqual((until - since).days, 30)
+
+    def test_window_starts_at_the_last_successful_digest(self):
+        """
+        Lo que evita los agujeros: si se perdió un envío, el siguiente cubre el hueco entero en vez
+        de mirar solo los últimos 15 días.
+        """
+        NotificationLog.objects.create(
+            event='digest', period_key='digest-viejo', status=NotificationLog.STATUS_SENT,
+            sent_at=self.now - timedelta(days=40))
+        since, until = digest_window('fortnightly', now=self.now)
+        self.assertEqual((until - since).days, 40)
+
+    def test_a_failed_digest_does_not_move_the_window(self):
+        NotificationLog.objects.create(
+            event='digest', period_key='digest-fallido', status=NotificationLog.STATUS_FAILED,
+            sent_at=self.now - timedelta(days=3))
+        since, until = digest_window('fortnightly', now=self.now)
+        self.assertEqual((until - since).days, 15)
+
+    def test_context_counts_only_the_window(self):
+        context = build_digest_context('fortnightly', now=self.now)
+        self.assertEqual(context['new_observations'], 1)   # la de hace 100 días queda fuera
+        self.assertEqual(context['total_observations'], 2)
+        self.assertEqual(context['top_projects'][0]['observations'], 1)
+
+    def test_send_digest_sends_once_and_is_idempotent(self):
+        send_digest('fortnightly')
+        send_digest('fortnightly')
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('Resumen quincenal', mail.outbox[0].subject)
+        log = NotificationLog.objects.get(event='digest')
+        self.assertEqual(log.status, NotificationLog.STATUS_SENT)
+
+    def test_the_subject_states_the_exact_range(self):
+        send_digest('fortnightly')
+        since, until = digest_window('fortnightly')
+        self.assertIn(until.date().isoformat(), mail.outbox[0].subject)
+
+    @override_settings(PLATFORM_NOTIFICATION_EMAILS=[])
+    def test_without_recipients_it_records_the_failure(self):
+        send_digest('fortnightly')
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertEqual(NotificationLog.objects.get(event='digest').status,
+                         NotificationLog.STATUS_FAILED)
+
+    def test_dry_run_neither_sends_nor_writes_a_log(self):
+        out = StringIO()
+        call_command('send_stats_digest', '--dry-run', stdout=out)
+        self.assertIn('DRY RUN', out.getvalue())
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertEqual(NotificationLog.objects.count(), 0)
+
+    def test_the_command_sends(self):
+        call_command('send_stats_digest', stdout=StringIO())
+        self.assertEqual(len(mail.outbox), 1)
+
+
+class SchedulerRegistrationTests(TestCase):
+    """
+    El calendario vive en run_scheduler.py, en git, no solo en Redis. Estos tests van contra la
+    DB 15 de Redis, la de pruebas, gracias al aislamiento de RQ_QUEUES.
+    """
+
+    def _scheduler(self):
+        import django_rq
+        return django_rq.get_scheduler('citisciapi')
+
+    def tearDown(self):
+        scheduler = self._scheduler()
+        for job in scheduler.get_jobs():
+            if job.id.startswith('geonity-'):
+                scheduler.cancel(job)
+
+    def test_register_only_registers_the_digest_with_a_fixed_id(self):
+        call_command('run_scheduler', '--register-only', stdout=StringIO())
+        ids = [job.id for job in self._scheduler().get_jobs()]
+        self.assertIn('geonity-digest-fortnightly', ids)
+
+    def test_registering_twice_does_not_duplicate(self):
+        """Reiniciar el proceso no puede dejar dos veces el mismo trabajo periódico."""
+        call_command('run_scheduler', '--register-only', stdout=StringIO())
+        call_command('run_scheduler', '--register-only', stdout=StringIO())
+        ids = [job.id for job in self._scheduler().get_jobs() if job.id.startswith('geonity-')]
+        self.assertEqual(ids.count('geonity-digest-fortnightly'), 1)
+
+
+class SchedulerTimezoneTests(TestCase):
+    """
+    La trampa de la zona horaria, fijada por escrito: Django sobrescribe TZ con su TIME_ZONE al
+    cargar los settings, así que ponerlo solo en supervisord no sirve. Hay que re-fijarlo después.
+    """
+
+    def setUp(self):
+        import os, time
+        self._tz = os.environ.get('TZ')
+        self.addCleanup(self._restore)
+
+    def _restore(self):
+        import os, time
+        if self._tz is None:
+            os.environ.pop('TZ', None)
+        else:
+            os.environ['TZ'] = self._tz
+        time.tzset()
+
+    def test_the_premise_of_the_problem(self):
+        """
+        Django fuerza el TZ del proceso a su TIME_ZONE, que aquí es UTC, mientras que los envíos se
+        quieren en hora de Madrid. De esa diferencia nace todo lo demás. (No se comprueba
+        `time.tzname` aquí: es estado global del proceso y cualquier otro test puede haberlo tocado.)
+        """
+        from django.conf import settings
+        self.assertEqual(settings.TIME_ZONE, 'UTC')
+        self.assertEqual(settings.PLATFORM_NOTIFICATION_TIMEZONE, 'Europe/Madrid')
+
+    def test_apply_scheduler_timezone_switches_the_process_to_madrid(self):
+        import time
+        from stats.management.commands.run_scheduler import apply_scheduler_timezone
+        self.assertEqual(apply_scheduler_timezone(), 'Europe/Madrid')
+        self.assertIn(time.tzname[0], ('CET', 'CEST'))
+
+    def test_the_cron_lands_at_08_00_local_in_both_halves_of_the_year(self):
+        """08:00 locales todo el año: 06:00 UTC en verano, 07:00 UTC en invierno."""
+        import datetime
+        import crontab
+        import dateutil.tz
+        from zoneinfo import ZoneInfo
+        from stats.management.commands.run_scheduler import apply_scheduler_timezone
+
+        apply_scheduler_timezone()
+        for ahora, utc_esperado in ((datetime.datetime(2026, 7, 10, 3, 0), 6),
+                                    (datetime.datetime(2027, 1, 10, 3, 0), 7)):
+            siguiente = crontab.CronTab('0 8 1,15 * *').next(
+                now=ahora, return_datetime=True).astimezone(dateutil.tz.tzlocal())
+            self.assertEqual(siguiente.hour, 8)
+            self.assertEqual(siguiente.astimezone(ZoneInfo('UTC')).hour, utc_esperado)
