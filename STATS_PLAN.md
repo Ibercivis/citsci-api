@@ -15,6 +15,74 @@ distintos. Un solo sitio donde arreglar los bugs de conteo.
 
 ---
 
+## Bitácora — dónde vamos
+
+| Fecha | Fase | Estado |
+|---|---|---|
+| 2026-09-10 | Fase 0 — decisiones | **Cerrada.** Vivo = 30 días; email al crear y al publicar; `draft` reversible. Quedan 3 decisiones abiertas (ver el final). |
+| 2026-09-10 | Fase 1 — modelo y migraciones | **Desplegada en producción.** |
+| — | Fase 2 — `metrics.py` + `/api/stats/platform/` | Siguiente. |
+| — | Fases 3-7 | Sin empezar. |
+
+**Fase 1, detalle del despliegue (2026-09-10):**
+- Commits `56cfce9` (código) y `aaf12c4` (este plan), en `vjorge`.
+- Migraciones `project/0042_add_published_at_and_status_log` y `stats/0001_initial` aplicadas a
+  `geonity_production`.
+- Backfill real: 38 filas `created` (exactas, `estimated=False`), 7 `published`
+  (`estimated=True`), `published_at` relleno en los 7 proyectos publicados y en ninguno de los 31
+  borradores.
+- 38 tests OK. Smoke test tras reiniciar `citsci-api` y `citsci-worker`: mismos códigos que el
+  baseline, 0 errores en `django_db_logger`.
+- Backups previos en `/home/ubuntu/backups/`: `geonity_production_pre-0042_20260910_1258.dump`
+  (verificado: 38 proyectos, 1.490 observaciones, 783 usuarios) y `citsci-api-code_20260910_1240.tar.gz`.
+- **Todavía no hay ningún comportamiento nuevo**: nadie escribe en `ProjectStatusLog` ni en
+  `NotificationLog`. Son tablas vacías esperando a las fases 2-4 (salvo el backfill).
+
+## Cómo se trabaja en esto (importante, el servidor es producción)
+
+**Dónde se escribe el código:** en el clon `/home/ubuntu/citsci-api-dev`, rama `stats`. Nunca
+directamente en `/home/ubuntu/citsci-api`, que es el checkout que sirve producción bajo supervisord
+con `autorestart=true`: un crash mientras editamos ahí levantaría código a medio escribir.
+
+**El clon aísla el código, NO los datos.** `local.env` apunta a `geonity_production` también desde el
+clon: cualquier `migrate` o `shell` que escriba toca producción. Los tests sí van a otra base.
+
+```bash
+# tests (el usuario citsci no puede crear bases, de ahí --keepdb)
+cd /home/ubuntu/citsci-api-dev
+/home/ubuntu/citsci-api/venv/bin/python manage.py test --keepdb
+
+# apuntar un comando a la base de test en vez de a producción
+DB_NAME=test_geonity_production /home/ubuntu/citsci-api/venv/bin/python manage.py migrate project 0041
+
+# desplegar a producción
+cd /home/ubuntu/citsci-api
+git fetch /home/ubuntu/citsci-api-dev stats && git merge --ff-only FETCH_HEAD
+venv/bin/python manage.py migrate          # ojo: `migrate app1 app2` NO existe, o `migrate` o una app por llamada
+sudo supervisorctl restart citsci-api citsci-worker
+
+# smoke test (nginx sirve con server_name geonity.ibercivis.es; desde la máquina hay que resolver a mano)
+curl -s -o /dev/null -w "%{http_code}\n" -k --resolve geonity.ibercivis.es:443:127.0.0.1 \
+  https://geonity.ibercivis.es/api/project/
+```
+
+**Backup antes de cada migración:**
+```bash
+PGPASSFILE=<fichero 0600 con host:port:db:user:pass> pg_dump -h localhost -U citsci -Fc \
+  -f /home/ubuntu/backups/geonity_production_$(date +%Y%m%d_%H%M).dump geonity_production
+```
+
+**Al revertir, el orden importa: primero el código, después la migración.** Al revés, el modelo tiene
+`published_at`, la columna ya no existe y revienta toda escritura de proyecto.
+
+**Pendiente de infraestructura, no bloquea:** este servidor **no puede subir a GitHub** (no hay clave
+privada en `~/.ssh`, `git@github.com` da `Permission denied (publickey)`). Hay commits sin subir desde
+el 7-sep y el código de dos años no tiene copia fuera de esta máquina. Hace falta generar una clave y
+darla de alta como deploy key con escritura en `Ibercivis/citsci-api`.
+
+
+---
+
 ## Estado actual (investigado 2026-09-10)
 
 ### Infraestructura (ya montada, no hay que tocarla)
@@ -93,14 +161,14 @@ donde meter la precomputación es `metrics.py`, sin tocar las vistas.
       `ADMINS` — eso lo usa Django para tracebacks y mezclarlo es pedir problemas.
 - [ ] Confirmar con el front cómo se autentica el dashboard (token de usuario `is_staff`).
 
-## Fase 1 — Modelo y migraciones
+## Fase 1 — Modelo y migraciones ✅ (desplegada 2026-09-10)
 
 **`draft` es reversible**, y eso rompe un `published_at` nullable a secas: no sabría si significa la
 primera publicación o la última, si se pone a `null` al despublicar, el email se dispararía en cada
 ida y vuelta y la serie "publicados por mes" quedaría ambigua. Se resuelve con un log de
 transiciones, que además hace correcta la idempotencia de los emails.
 
-- [ ] `ProjectStatusLog` (app `project`), ~15 líneas y una migración; a 38 proyectos el coste es cero:
+- [x] `ProjectStatusLog` (app `project`), ~15 líneas y una migración; a 38 proyectos el coste es cero:
 ```python
 class ProjectStatusLog(models.Model):
     project = FK(Project, related_name='status_log')
@@ -108,19 +176,19 @@ class ProjectStatusLog(models.Model):
     at      = DateTimeField(auto_now_add=True, db_index=True)
     by      = FK(User, null=True, on_delete=SET_NULL)
 ```
-- [ ] `Project.published_at = DateTimeField(null=True, blank=True, db_index=True)` junto a
+- [x] `Project.published_at = DateTimeField(null=True, blank=True, db_index=True)` junto a
       `last_observation` (`project/models.py:60`) = **primera publicación, inmutable**. No se
       sobrescribe en publicaciones posteriores ni se pone a `null` al despublicar. La serie
       "proyectos publicados por mes" es por tanto **primeras publicaciones**, que es la métrica de
       crecimiento que interesa, y despublicar no reescribe el histórico.
-- [ ] El **estado actual sigue siendo `draft`/`ended`**, sin cambios. El log no es la fuente de
+- [x] El **estado actual sigue siendo `draft`/`ended`**, sin cambios. El log no es la fuente de
       verdad del estado, es el histórico — y es lo que permite responder "cuántos proyectos estaban
       publicados en marzo", imposible en cuanto alguien despublica.
-- [ ] Migración `project/0042_add_published_at_and_status_log` con `RunPython` de backfill:
+- [x] Migración `project/0042_add_published_at_and_status_log` con `RunPython` de backfill:
       `published_at = created_at` y una fila `created` en el log para los proyectos con `draft=False`.
       **El commit debe decir que el histórico anterior a esta migración es una estimación**, no un
       dato real: `updated_at` es `auto_now` y no sirve para reconstruir nada.
-- [ ] App nueva `stats` en `INSTALLED_APPS`, con un único modelo:
+- [x] App nueva `stats` en `INSTALLED_APPS`, con un único modelo:
       `NotificationLog(event, period_key, recipients, status, error, created_at, sent_at)` con
       `unique_together = ('event', 'period_key')`. Migración `stats/0001_initial`.
       El log vive aquí y no en una app `notifications` propia para no crear dos apps de golpe; si las
