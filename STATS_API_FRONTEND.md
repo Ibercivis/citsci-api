@@ -146,7 +146,7 @@ proyecto. **No trae `top`.**
   "period": { … },
   "projects": { … },        // mismas claves que arriba
   "observations": { … },
-  "contributors": { "registered": 31, "anonymous": 2, "total": 33 },
+  "contributors": { "registered": 31, "anonymous": 2, "total": 33, "new": 23, "recurring": 12 },
   "series": {
     "observations": [ … ],
     "observations_cumulative": [ … ],
@@ -187,7 +187,7 @@ Un solo proyecto. **No trae `top`.**
     "created_at": "…", "published_at": "…"
   },
   "observations": { … },
-  "contributors": { "registered": 31, "anonymous": 2, "total": 33 },
+  "contributors": { "registered": 31, "anonymous": 2, "total": 33, "new": 23, "recurring": 12 },
   "span": { "first_observation": "…", "last_observation": "…" },  // null si no hay ninguna
   "series": {
     "observations": [ … ],
@@ -231,6 +231,25 @@ datos por otro sitio.
 
 **`total` vs `active` en usuarios**: hoy coinciden (784/784) porque no hay nadie desactivado. No
 asumáis que siempre será así.
+
+---
+
+## El correo y la API dicen lo mismo
+
+Los correos automáticos **no llaman a la API**: son el mismo servidor y sería absurdo que se hiciera
+una petición HTTP a sí mismo. Lo que comparten es la capa de cálculo (`stats/metrics.py`), así que
+un número que salga distinto en el panel y en el correo es un bug, no una diferencia de diseño.
+
+Lo que sí es distinto, a propósito:
+
+| | API | Correo |
+|---|---|---|
+| Ventana | la que pidáis con `from`/`to` | desde el último envío correcto |
+| Gráficos | series en crudo | barras con altura en píxeles, que es cosa del email |
+| Rankings | `top` solo en plataforma | los 5 primeros |
+
+El bloque `contributors` incluye `new` y `recurring`, los mismos que el correo enseña como
+"23 nuevas · 12 repiten", para que el panel pueda decir exactamente lo mismo.
 
 ---
 

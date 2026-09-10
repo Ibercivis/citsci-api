@@ -291,7 +291,12 @@ class ProjectLevelStatsTests(APITestCase):
         data = self.client.get(self.project_url).data
         self.assertEqual(data['project']['id'], self.project.id)
         self.assertEqual(data['observations']['total'], 2)
-        self.assertEqual(data['contributors'], {'registered': 1, 'anonymous': 1, 'total': 2})
+        self.assertEqual(
+            {k: data['contributors'][k] for k in ('registered', 'anonymous', 'total')},
+            {'registered': 1, 'anonymous': 1, 'total': 2})
+        # el desglose nuevos/recurrentes es el mismo que enseña el correo mensual
+        self.assertIn('new', data['contributors'])
+        self.assertIn('recurring', data['contributors'])
         self.assertIsNotNone(data['span']['first_observation'])
         # Los rankings entre proyectos son exclusivos del nivel de plataforma.
         self.assertNotIn('top', data)
@@ -819,7 +824,9 @@ class ProjectDigestTests(TestCase):
     def test_new_and_recurring_contributors(self):
         context = build_project_context(self.activo, 'month', now=self.now)
         # una con cuenta y una anónima, las dos estrenándose en el proyecto
-        self.assertEqual(context['contributors'], {'new': 2, 'recurring': 0, 'total': 2})
+        self.assertEqual(
+            {k: context['contributors'][k] for k in ('new', 'recurring', 'total')},
+            {'new': 2, 'recurring': 0, 'total': 2})
 
     def test_a_contributor_from_before_counts_as_recurring(self):
         _make_observation(self.activo, created_at=self.now - timedelta(days=200),

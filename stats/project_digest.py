@@ -88,44 +88,15 @@ def project_digest_kind(project, period='month', now=None):
     return KIND_INACTIVE
 
 
-def _contributors_new_vs_recurring(project, since, until):
-    """
-    Quien contribuye por primera vez en este proyecto y quien repite. Es el dato que le importa a un
-    creador y que el resumen global no da.
-    """
-    observations = Observation.objects.filter(field_form__project=project)
-    del_periodo = observations.filter(created_at__gte=since, created_at__lt=until)
-
-    nuevos = recurrentes = 0
-    for campo in ('creator_id', 'anonymous_id'):
-        activos = set(del_periodo.filter(**{f'{campo}__isnull': False})
-                      .values_list(campo, flat=True).distinct())
-        if not activos:
-            continue
-        primeras = dict(
-            observations.filter(**{f'{campo}__in': activos})
-            .values(campo).annotate(primera=Min('created_at'))
-            .values_list(campo, 'primera')
-        )
-        for ident in activos:
-            if primeras.get(ident) and primeras[ident] >= since:
-                nuevos += 1
-            else:
-                recurrentes += 1
-    return {'new': nuevos, 'recurring': recurrentes, 'total': nuevos + recurrentes}
-
-
 def build_project_context(project, period='month', now=None, lang='es'):
     since, until = project_window(period, now=now)
     label = PERIODS.get(period, PERIODS['month'])[0]
 
     observations = Observation.objects.filter(field_form__project=project)
     del_periodo = observations.filter(created_at__gte=since, created_at__lt=until)
-    anterior = observations.filter(created_at__gte=since - (until - since), created_at__lt=since)
 
-    total = del_periodo.count()
-    previo = anterior.count()
-    delta_pct = round((total - previo) * 100 / previo) if previo else None
+    # La misma comparativa que expone la API, no una segunda formula del mismo porcentaje.
+    comparativa = metrics.compare_periods(observations, 'created_at', since, until)
 
     chart_from = until.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     for _mes in range(CHART_MONTHS - 1):
@@ -142,13 +113,13 @@ def build_project_context(project, period='month', now=None, lang='es'):
         'since': since.date().isoformat(),
         'until': until.date().isoformat(),
         'days': (until - since).days,
-        'observations': total,
-        'previous_observations': previo,
-        'delta_pct': delta_pct,
-        'direction': 'up' if total > previo else ('down' if total < previo else 'flat'),
+        'observations': comparativa['value'],
+        'previous_observations': comparativa['previous'],
+        'delta_pct': comparativa['delta_pct'],
+        'direction': comparativa['direction'],
         'total_observations': observations.count(),
         'platform': metrics.observation_metrics(del_periodo, now=until)['by_platform'],
-        'contributors': _contributors_new_vs_recurring(project, since, until),
+        'contributors': metrics.contributor_metrics(del_periodo, observations, since),
         'anonymous': del_periodo.filter(anonymous_id__isnull=False).count(),
         'bars': _bars(serie),
         'chart_months': CHART_MONTHS,

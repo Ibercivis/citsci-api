@@ -234,19 +234,42 @@ def top_creators(project_qs, lang='es', limit=10):
     ]
 
 
-def contributor_metrics(observation_qs):
+def contributor_metrics(observation_qs, history_qs=None, since=None):
     """
     Cuantas personas distintas han contribuido. Los anonimos se cuentan por `anonymous_id`, que es
     lo mas cerca que se puede estar de "un navegador": no identifica a nadie y NO sale en la
     respuesta, solo su cardinalidad.
+
+    Con `history_qs` y `since` anade ademas cuantas estrenan y cuantas repiten: "nueva" es quien
+    tiene su PRIMERA contribucion del historico dentro de la ventana. Es el dato que le importa a un
+    creador y el que separa un proyecto que capta gente de uno que exprime a los de siempre.
     """
     registered = observation_qs.filter(creator__isnull=False).values('creator_id').distinct().count()
     anonymous = observation_qs.filter(anonymous_id__isnull=False).values('anonymous_id').distinct().count()
-    return {
+    datos = {
         'registered': registered,
         'anonymous': anonymous,
         'total': registered + anonymous,
     }
+    if history_qs is None or since is None:
+        return datos
+
+    nuevos = 0
+    for campo in ('creator_id', 'anonymous_id'):
+        activos = set(observation_qs.filter(**{f'{campo}__isnull': False})
+                      .values_list(campo, flat=True).distinct())
+        if not activos:
+            continue
+        primeras = (
+            history_qs.filter(**{f'{campo}__in': activos})
+            .values(campo).annotate(primera=Min('created_at'))
+            .values_list('primera', flat=True)
+        )
+        nuevos += sum(1 for momento in primeras if momento >= since)
+
+    datos['new'] = min(nuevos, datos['total'])
+    datos['recurring'] = datos['total'] - datos['new']
+    return datos
 
 
 def per_project_summary(project_qs, lang='es', now=None):

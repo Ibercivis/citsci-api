@@ -86,7 +86,7 @@ def build_digest_context(period, now=None, lang='es'):
     project_totals = metrics.project_metrics(projects, now=until)
     observation_totals = metrics.observation_metrics(observations, now=until)
     period_observations = observations.filter(created_at__gte=since, created_at__lt=until)
-    contributors = metrics.contributor_metrics(period_observations)
+    contributors = metrics.contributor_metrics(period_observations, observations, since)
     # Del periodo, no historico: esta seccion del correo habla de la quincena, y mezclar un
     # acumulado de dos anos con contribuidores de 15 dias se lee mal.
     period_platform = metrics.observation_metrics(period_observations, now=until)['by_platform']

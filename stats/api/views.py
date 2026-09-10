@@ -26,7 +26,7 @@ CACHE_TIMEOUT = 600  # 10 min. El TIMEOUT global de CACHES es de 24h, hay que pa
 # payload la API sigue sirviendo la forma antigua hasta 10 minutos, y el front recibe respuestas
 # incoherentes segun le toque cache o no. Paso el 2026-09-10 al anadir `comparison`.
 # SUBIRLA cada vez que se anadan o quiten claves del payload.
-PAYLOAD_VERSION = 2
+PAYLOAD_VERSION = 3
 DEFAULT_MONTHS = 12
 GRANULARITIES = ('month', 'week')
 
@@ -197,7 +197,8 @@ class MyStatsView(GenericAPIView):
             },
             'projects': metrics.project_metrics(projects, now=now),
             'observations': metrics.observation_metrics(observations, now=now),
-            'contributors': metrics.contributor_metrics(observations),
+            'contributors': metrics.contributor_metrics(
+                observations.filter(created_at__gte=since, created_at__lt=until), observations, since),
             'series': {
                 'observations': series,
                 'observations_cumulative': cumulative,
@@ -270,7 +271,8 @@ class ProjectStatsView(GenericAPIView):
                 'published_at': project.published_at,
             },
             'observations': metrics.observation_metrics(observations, now=now),
-            'contributors': metrics.contributor_metrics(observations),
+            'contributors': metrics.contributor_metrics(
+                observations.filter(created_at__gte=since, created_at__lt=until), observations, since),
             'span': metrics.observation_span(observations),
             'series': {
                 'observations': series,
