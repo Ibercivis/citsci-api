@@ -33,11 +33,11 @@ def apply_scheduler_timezone():
 
 SCHEDULED_JOBS = [
     {
-        'id': 'geonity-digest-fortnightly',
-        'cron': '0 8 1,15 * *',
+        'id': 'geonity-digest-monthly',
+        'cron': '0 8 1 * *',
         'func': 'stats.tasks.send_digest',
-        'args': ['fortnightly'],
-        'description': 'Resumen quincenal de plataforma (dias 1 y 15 a las 08:00 hora local)',
+        'args': ['month'],
+        'description': 'Resumen mensual de plataforma (dia 1 a las 08:00 hora local)',
     },
 ]
 

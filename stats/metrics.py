@@ -285,3 +285,32 @@ def observation_span(observation_qs):
     """Primera y ultima observacion, por fecha de servidor."""
     span = observation_qs.aggregate(first=Min('created_at'), last=Max('created_at'))
     return {'first_observation': span['first'], 'last_observation': span['last']}
+
+
+def abandoned_projects(project_qs, lang='es', limit=10, now=None):
+    """
+    Proyectos publicados sin actividad reciente, con nombre y cuantos dias llevan parados.
+
+    Con el nombre delante el dato es accionable: "1 abandonado" no dice nada, "Flood2Now lleva 4
+    meses parado" si. Los que nunca han recibido una observacion salen con days=None.
+    """
+    now = now or timezone.now()
+    cutoff = now - timedelta(days=ABANDONED_DAYS)
+
+    rows = (
+        project_qs
+        .filter(draft=False, ended=False)
+        .annotate(last_observation_at=Max('fieldform__observations__created_at'))
+        .filter(Q(last_observation_at__lt=cutoff) | Q(last_observation_at__isnull=True))
+        .order_by('last_observation_at')
+        .values('id', 'name', 'last_observation_at')[:limit]
+    )
+    return [
+        {
+            'id': r['id'],
+            'name': resolve_translation(r['name'], lang),
+            'last_observation': r['last_observation_at'],
+            'days': (now - r['last_observation_at']).days if r['last_observation_at'] else None,
+        }
+        for r in rows
+    ]

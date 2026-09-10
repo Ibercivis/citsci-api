@@ -156,6 +156,7 @@ def build_digest_context(period, now=None, lang='es'):
         'total_published': project_totals['published'],
         'active_30d': project_totals['active_30d'],
         'abandoned': project_totals['abandoned'],
+        'abandoned_projects': metrics.abandoned_projects(projects, lang=lang, limit=5, now=until),
         'total_observations': observation_totals['total'],
         'total_users': users.count(),
         'top_projects': metrics.top_projects(projects, lang=lang, limit=5, since=since),

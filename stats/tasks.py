@@ -177,8 +177,14 @@ def _digest_text_body(context):
         f'{context["abandoned"]} abandonados), {context["total_observations"]} observaciones '
         f'({context["anonymous_observations"]} anonimas), {context["total_users"]} usuarios.',
         '',
-        'Evolucion de los ultimos meses:',
     ]
+    if context.get('abandoned_projects'):
+        lines.append('Proyectos publicados sin actividad:')
+        for p in context['abandoned_projects']:
+            cuanto = f'{p["days"]} dias sin observaciones' if p['days'] is not None else 'nunca ha recibido observaciones'
+            lines.append(f'  - {p["name"]}: {cuanto}')
+        lines.append('')
+    lines.append('Evolucion de los ultimos meses:')
     for chart in context['charts']:
         serie = '  '.join(f'{bar["label"]} {bar["count"]}' for bar in chart['bars'])
         lines.append(f'  {chart["title"]}: {serie}')

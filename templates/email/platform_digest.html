@@ -74,11 +74,25 @@
   </table>
 
   <h2 style="margin:0 0 12px 0;font-size:16px;font-weight:700;color:#111827;">{% trans "Estado de la plataforma" %}</h2>
-  <p style="margin:0 0 24px 0;font-size:15px;line-height:1.8;color:#6b7585;">
+  <p style="margin:0 0 20px 0;font-size:15px;line-height:1.8;color:#6b7585;">
     {% blocktrans %}{{ total_projects }} proyectos, de los que {{ total_published }} están publicados y {{ active_30d }} han recibido observaciones en los últimos 30 días.{% endblocktrans %}<br>
-    {% if abandoned %}{% blocktrans %}{{ abandoned }} publicados llevan más de 90 días sin actividad.{% endblocktrans %}<br>{% endif %}
     {% blocktrans %}{{ total_observations }} observaciones en total ({{ anonymous_observations }} anónimas) y {{ total_users }} usuarios registrados.{% endblocktrans %}
   </p>
+
+  {% if abandoned_projects %}
+  <h2 style="margin:0 0 4px 0;font-size:16px;font-weight:700;color:#111827;">{% trans "Publicados sin actividad" %}</h2>
+  <p style="margin:0 0 12px 0;font-size:13px;color:#6b7585;">{% trans "Más de 90 días sin recibir observaciones" %}</p>
+  <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:24px;">
+    {% for p in abandoned_projects %}
+    <tr>
+      <td style="padding:8px 0;border-bottom:1px solid #e2e5ed;font-size:14px;color:#111827;">{{ p.name }}</td>
+      <td align="right" style="padding:8px 0;border-bottom:1px solid #e2e5ed;font-size:13px;color:#a16207;white-space:nowrap;">
+        {% if p.days %}{% blocktrans with d=p.days %}{{ d }} días{% endblocktrans %}{% else %}{% trans "ninguna aún" %}{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
 
   {% if top_projects %}
   <h2 style="margin:0 0 12px 0;font-size:16px;font-weight:700;color:#111827;">{% trans "Proyectos con más actividad" %}</h2>

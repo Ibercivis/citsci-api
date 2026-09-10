@@ -585,14 +585,14 @@ class SchedulerRegistrationTests(TestCase):
     def test_register_only_registers_the_digest_with_a_fixed_id(self):
         call_command('run_scheduler', '--register-only', stdout=StringIO())
         ids = [job.id for job in self._scheduler().get_jobs()]
-        self.assertIn('geonity-digest-fortnightly', ids)
+        self.assertIn('geonity-digest-monthly', ids)
 
     def test_registering_twice_does_not_duplicate(self):
         """Reiniciar el proceso no puede dejar dos veces el mismo trabajo periódico."""
         call_command('run_scheduler', '--register-only', stdout=StringIO())
         call_command('run_scheduler', '--register-only', stdout=StringIO())
         ids = [job.id for job in self._scheduler().get_jobs() if job.id.startswith('geonity-')]
-        self.assertEqual(ids.count('geonity-digest-fortnightly'), 1)
+        self.assertEqual(ids.count('geonity-digest-monthly'), 1)
 
 
 class SchedulerTimezoneTests(TestCase):
@@ -641,7 +641,7 @@ class SchedulerTimezoneTests(TestCase):
         apply_scheduler_timezone()
         for ahora, utc_esperado in ((datetime.datetime(2026, 7, 10, 3, 0), 6),
                                     (datetime.datetime(2027, 1, 10, 3, 0), 7)):
-            siguiente = crontab.CronTab('0 8 1,15 * *').next(
+            siguiente = crontab.CronTab('0 8 1 * *').next(
                 now=ahora, return_datetime=True).astimezone(dateutil.tz.tzlocal())
             self.assertEqual(siguiente.hour, 8)
             self.assertEqual(siguiente.astimezone(ZoneInfo('UTC')).hour, utc_esperado)
@@ -702,3 +702,52 @@ class DigestInsightsTests(TestCase):
 
     def test_contributors_are_counted_within_the_period(self):
         self.assertEqual(self._context()['contributors']['registered'], 1)
+
+
+class AbandonedProjectsTests(TestCase):
+    """
+    Con el nombre delante el dato es accionable: "1 abandonado" no dice nada, "Flood2Now lleva 342
+    días parado" sí.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.now = timezone.now()
+        cls.creator = User.objects.create_user(username='dueña', email='d@example.com')
+        cls.parado = _make_project(cls.creator, 'Parado hace mucho')
+        cls.vivo = _make_project(cls.creator, 'Al día')
+        cls.nunca = _make_project(cls.creator, 'Nunca recibió nada')
+        cls.borrador = _make_project(cls.creator, 'Borrador viejo', draft=True)
+        cls.terminado = _make_project(cls.creator, 'Terminado', ended=True)
+
+        _make_observation(cls.parado, created_at=cls.now - timedelta(days=200))
+        _make_observation(cls.vivo, created_at=cls.now - timedelta(days=2))
+        _make_observation(cls.borrador, created_at=cls.now - timedelta(days=300))
+
+    def _names(self):
+        return [p['name'] for p in metrics.abandoned_projects(Project.objects.all(), now=self.now)]
+
+    def test_lists_the_stale_published_project_with_its_days(self):
+        rows = metrics.abandoned_projects(Project.objects.all(), now=self.now)
+        parado = next(p for p in rows if p['name'] == 'Parado hace mucho')
+        self.assertEqual(parado['days'], 200)
+
+    def test_a_project_that_never_received_anything_appears_with_no_days(self):
+        rows = metrics.abandoned_projects(Project.objects.all(), now=self.now)
+        nunca = next(p for p in rows if p['name'] == 'Nunca recibió nada')
+        self.assertIsNone(nunca['days'])
+
+    def test_active_drafts_and_ended_projects_are_left_out(self):
+        """Un borrador parado no es un problema, y uno terminado lo está a propósito."""
+        names = self._names()
+        self.assertNotIn('Al día', names)
+        self.assertNotIn('Borrador viejo', names)
+        self.assertNotIn('Terminado', names)
+
+    def test_it_matches_the_abandoned_count(self):
+        contados = metrics.project_metrics(Project.objects.all(), now=self.now)['abandoned']
+        self.assertEqual(len(self._names()), contados)
+
+    def test_the_digest_carries_the_names(self):
+        context = build_digest_context('month', now=self.now)
+        self.assertIn('Parado hace mucho', [p['name'] for p in context['abandoned_projects']])
