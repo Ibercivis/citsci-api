@@ -297,6 +297,17 @@ RQ_QUEUES = {
 
 ADMINS = [('Ibercivis', 'frasanz@ibercivis.es')]
 
+# Destinatarios de los avisos de plataforma: proyecto creado/publicado/despublicado, organizacion
+# nueva y resumen periodico. Lista explicita y NO derivada de is_staff a proposito: entre los
+# superusuarios hay cuentas de prueba con dominios que no existen, y cada rebote cuenta contra la
+# reputacion de envio de SES. Distinto de ADMINS, que Django usa para los tracebacks.
+PLATFORM_NOTIFICATION_EMAILS = env.list('PLATFORM_NOTIFICATION_EMAILS', default=[])
+
+# Zona horaria de los envios programados. TIME_ZONE del proyecto sigue siendo UTC y no se toca:
+# esto solo decide a que hora local sale el resumen periodico. Con 'Europe/Madrid' el cambio de
+# hora se gestiona solo (UTC+2 en verano, UTC+1 en invierno).
+PLATFORM_NOTIFICATION_TIMEZONE = env('PLATFORM_NOTIFICATION_TIMEZONE', default='Europe/Madrid')
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,

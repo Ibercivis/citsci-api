@@ -277,6 +277,10 @@ los niveles inferiores.
       dentro de try/except, como `markers/api/views.py:167`.
 - [ ] Eventos de salida: **proyecto creado**, **proyecto publicado**, **proyecto despublicado**,
       **organización nueva**, e hitos del proyecto (primera observación, y al cruzar 10 / 100 / 1000).
+- [x] `PLATFORM_NOTIFICATION_EMAILS` y `PLATFORM_NOTIFICATION_TIMEZONE` ya están en `settings.py` y
+      en el `local.env` de producción y del clon (commiteado sin desplegar: todavía no los lee nadie).
+      Si la lista viene vacía, el envío se registra como `failed` en `NotificationLog` con el motivo,
+      en vez de reventar la tarea.
 - [ ] **Idempotencia: la fila de `ProjectStatusLog` es la clave.**
       `period_key = f'project-status-{log.id}'`. Un reintento de rq no duplica el correo, y una
       segunda publicación **sí** manda el suyo porque es otra fila. Sin el log habría que inventarse
@@ -317,8 +321,11 @@ autorestart=true
 stderr_logfile=/var/log/supervisor/citsci-scheduler.err.log
 stdout_logfile=/var/log/supervisor/citsci-scheduler.out.log
 ```
-- [ ] **Zona horaria**: el cron string va en UTC. `0 6 1,15 * *` son las 08:00 en Madrid en verano y
-      las 07:00 en invierno. Decidir si da igual.
+- [ ] **Zona horaria: resuelto poniendo `TZ` en el propio program de supervisord**, para que el cron
+      string se interprete en hora local y el cambio de hora se gestione solo:
+      `environment=TZ="Europe/Madrid"` en `citsci-scheduler.conf`, y `use_local_timezone=True` al
+      registrar el cron. Comprobado que si no, `0 6 1,15 * *` sale a las 08:00 CEST en verano y a
+      las 07:00 CET en invierno. `TIME_ZONE` de Django sigue en UTC.
 - [ ] "Quincenal" = **días 1 y 15** (periodos de 13-16 días); ni cron ni rq-scheduler saben expresar
       "cada 14 días". El email debe indicar el **rango de fechas exacto** que cubre, no "últimos 15
       días".
@@ -367,10 +374,26 @@ la extensión postgis. `venv/bin/python manage.py test stats --keepdb`.
 ---
 
 ## Decisiones abiertas
-1. Zona horaria del envío periódico: UTC a secas o forzar Europe/Madrid.
-2. ¿Email también al **despublicar**? Recomendación: sí, es justo lo que interesa detectar.
-3. Si el dashboard de admin necesita algo más que estos tres endpoints — conviene enseñarle el
+1. Si el dashboard de admin necesita algo más que estos tres endpoints — conviene enseñarle el
    payload de la Fase 2 al front antes de implementarlo.
+2. `fran33` / `frasanz@gg.com` (id 434) es superusuario, nunca ha entrado y su dominio no existe.
+   Con la Fase 2 tendría acceso al endpoint de plataforma. Pendiente decidir si se le quita
+   `is_superuser`/`is_staff` o se desactiva. Aparte de este trabajo.
+
+## Decisiones cerradas el 2026-09-10 (segunda tanda)
+- [x] **Zona horaria de los envíos: `Europe/Madrid`**, no un desfase fijo. Madrid es UTC+2 en verano
+      pero UTC+1 en invierno: un cron fijo a las 06:00 UTC saldría a las 08:00 en verano y a las
+      07:00 en invierno. `TIME_ZONE` del proyecto **sigue siendo UTC** y no se toca; esto es solo
+      para los envíos. Setting `PLATFORM_NOTIFICATION_TIMEZONE`, por defecto `Europe/Madrid`.
+- [x] **Sí se manda email al despublicar** un proyecto.
+- [x] **Destinatarios** en `PLATFORM_NOTIFICATION_EMAILS` (`local.env`), lista explícita:
+      `frasanz@ibercivis.es`, `jbarba@ibercivis.es`, `dlisbona@ibercivis.es`,
+      `germangil@ibercivis.es`. **Todos reciben todo**: avisos de proyecto y resumen quincenal.
+      No se derivan de `is_staff` a propósito: entre los superusuarios hay cuentas de prueba con
+      dominios inexistentes (`frasanz@gg.com`) y cada rebote cuenta contra la reputación de SES.
+- [x] `is_staff=True` (sin `is_superuser`) para `Germán` (id 138) y `dlisbona` (id 168), sus cuentas
+      `@ibercivis.es`. Ojo: los dos tienen además una cuenta personal de gmail en la plataforma
+      (ids 415 y 495) que **no** es staff; para el dashboard tienen que entrar con la de ibercivis.
 
 ---
 
