@@ -23,7 +23,7 @@ distintos. Un solo sitio donde arreglar los bugs de conteo.
 | 2026-09-10 | Fase 1 — modelo y migraciones | **Desplegada en producción.** |
 | 2026-09-10 | Fase 2 — `metrics.py` + `/api/stats/platform/` | **Desplegada en producción.** |
 | 2026-09-10 | Fase 3 — stats por creador y por proyecto | **Desplegada en producción.** |
-| 2026-09-10 | Fase 4 — avisos por evento | **Desplegada en producción.** Pendiente un envío real de prueba. |
+| 2026-09-10 | Fase 4 — avisos por evento | **Desplegada y probada con un envío real.** |
 | — | Fase 5 — scheduler + resumen quincenal | Siguiente. |
 | — | Fases 6-7 | Sin empezar. |
 
@@ -82,10 +82,18 @@ distintos. Un solo sitio donde arreglar los bugs de conteo.
   pero con el backend en memoria, así que **no se envió ningún correo**. El render sale bien y el
   worker está vivo escuchando `citisciapi`.
 - 79 tests OK.
-- **Pendiente: un envío real de prueba.** Lo suyo es apuntar temporalmente
-  `PLATFORM_NOTIFICATION_EMAILS` a una sola dirección, encolar un aviso, comprobar que llega y
-  restaurar la lista. Hasta entonces, el primer correo real saldrá solo cuando alguien cree,
-  publique o despublique un proyecto de verdad.
+- **Envío real de prueba: hecho** (2026-09-10 13:35). Se apuntó `PLATFORM_NOTIFICATION_EMAILS`
+  temporalmente a `frasanz@ibercivis.es`, se encoló un aviso, salió por SES con estado `sent` y sin
+  error, y se restauró la lista de cuatro (verificado que el resto del `local.env` quedó idéntico
+  al backup). La fila de prueba se borró: `notification_log` vuelve a 0.
+- **Bug propio detectado y corregido en el acto:** `manage.py test` estaba encolando trabajos
+  **reales en la cola de producción**. Los tests usan su propia base de datos, pero `django_rq` no
+  se sustituye solo, y el `record_observation_milestone` que añade esta fase encola sin condiciones.
+  Aparecieron 8 jobs `project-milestone` de proyectos que solo existen en la BD de test. Fallaron
+  porque el worker aún no tenía `stats.tasks`, pero con la fase ya desplegada la siguiente
+  ejecución de la suite habría **enviado correos de verdad a los cuatro destinatarios**. Ahora la
+  cola apunta a la DB 15 de Redis cuando `'test' in sys.argv`, con un test que lo vigila. Los 8
+  jobs basura se borraron del registro de fallidos.
 - Salió al escribir los tests: **el serializer exige más de 10 observaciones para publicar**, así
   que publicar nunca ocurre sobre un proyecto vacío.
 
@@ -96,6 +104,12 @@ distintos. Un solo sitio donde arreglar los bugs de conteo.
   su propia sesión.
 - 430 observaciones (29%) tienen `platform` a NULL. No se esconden: salen como `unknown`.
 - 29 invitaciones de proyecto llevan en `pending` sin que nada las marque como `expired`.
+- **13 trabajos fallidos antiguos en la cola de rq** (14-mar a 8-sep-2026), todos de `markers`:
+  11 de `send_post_observation_email` y 2 de `send_observation_email`. Los errores son de tres
+  tipos: `MessageRejected` de SES, `ImportError: cannot import name 'FullResultSet' from
+  django.core.exceptions` (incompatibilidad de versión, jobs encolados con un Django anterior) y un
+  `TemplateSyntaxError: 'get_current_language' requires 'as variable'`. Se dejaron donde estaban:
+  son correos que alguien esperaba y no llegaron.
 
 ## Cómo se trabaja en esto (importante, el servidor es producción)
 
