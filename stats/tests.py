@@ -220,7 +220,7 @@ class PlatformStatsViewTests(APITestCase):
         salta, alguien ha metido un bucle de queries en metrics.py.
         """
         self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.staff_token.key}')
-        with self.assertNumQueries(24):
+        with self.assertNumQueries(33):
             self.client.get(self.url)
 
 
@@ -1054,3 +1054,111 @@ class ProjectSerializerFieldsTests(APITestCase):
                           {'published_at': '2020-01-01T00:00:00Z'}, format='json')
         self.project.refresh_from_db()
         self.assertIsNone(self.project.published_at)
+
+
+class EvolutionSeriesTests(TestCase):
+    """
+    Las series que la de observaciones no puede dar: 200 observaciones de 40 personas y 200 de una
+    sola se ven igual mirando solo el volumen.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.now = timezone.now().replace(day=15, hour=12)
+        cls.creator = User.objects.create_user(username='serie', email='s@example.com')
+        cls.otra = User.objects.create_user(username='serie2', email='s2@example.com')
+        cls.project = _make_project(cls.creator, 'Serie')
+        hace_dos_meses = (cls.now.replace(day=1) - timedelta(days=32)).replace(day=10)
+        hace_un_mes = (cls.now.replace(day=1) - timedelta(days=1)).replace(day=10)
+
+        # mes -2: una persona estrena
+        _make_observation(cls.project, created_at=hace_dos_meses, creator=cls.creator)
+        # mes -1: la misma repite y entra otra nueva, más una anónima
+        _make_observation(cls.project, created_at=hace_un_mes, creator=cls.creator)
+        _make_observation(cls.project, created_at=hace_un_mes, creator=cls.otra)
+        _make_observation(cls.project, created_at=hace_un_mes, platform='web',
+                          anonymous_id='77777777-7777-7777-7777-777777777777')
+
+    def _serie(self):
+        obs = Observation.objects.filter(field_form__project=self.project)
+        desde = (self.now.replace(day=1) - timedelta(days=70)).replace(day=1)
+        return metrics.contributor_timeseries(obs, desde, self.now)
+
+    def test_distinguishes_new_from_returning(self):
+        serie = {f['period']: f for f in self._serie()}
+        mes_1 = sorted(serie)[-2]
+        fila = serie[mes_1]
+        self.assertEqual(fila['total'], 3)       # creator + otra + anónima
+        self.assertEqual(fila['new'], 2)         # otra y la anónima estrenan
+        self.assertEqual(fila['recurring'], 1)   # creator repite
+
+    def test_counts_anonymous_separately_without_exposing_the_id(self):
+        fila = sorted(self._serie(), key=lambda f: f['period'])[-2]
+        self.assertEqual(fila['anonymous'], 1)
+        self.assertEqual(fila['registered'], 2)
+        self.assertNotIn('anonymous_id', fila)
+        self.assertNotIn('77777777-7777-7777-7777-777777777777', str(fila))
+
+    def test_empty_range_gives_an_empty_series(self):
+        obs = Observation.objects.filter(field_form__project=self.project)
+        self.assertEqual(metrics.contributor_timeseries(obs, self.now, self.now), [])
+        self.assertEqual(metrics.platform_timeseries(obs, self.now, self.now), [])
+
+    def test_platform_series_splits_mobile_and_web(self):
+        obs = Observation.objects.filter(field_form__project=self.project)
+        desde = (self.now.replace(day=1) - timedelta(days=70)).replace(day=1)
+        serie = metrics.platform_timeseries(obs, desde, self.now)
+        totales = {'mobile': sum(f['mobile'] for f in serie), 'web': sum(f['web'] for f in serie)}
+        self.assertEqual(totales, {'mobile': 3, 'web': 1})
+
+    def test_comparison_against_the_previous_window(self):
+        obs = Observation.objects.filter(field_form__project=self.project)
+        # Ventana de 20 días: vacía. La anterior, [-40d, -20d], cubre las 3 del mes pasado.
+        desde = self.now - timedelta(days=20)
+        datos = metrics.compare_periods(obs, 'created_at', desde, self.now)
+        self.assertEqual(datos['value'], 0)
+        self.assertEqual(datos['previous'], 3)
+        self.assertEqual(datos['direction'], 'down')
+        self.assertEqual(datos['delta_pct'], -100)
+
+    def test_no_percentage_without_a_baseline(self):
+        obs = Observation.objects.none()
+        datos = metrics.compare_periods(obs, 'created_at', self.now - timedelta(days=30), self.now)
+        self.assertIsNone(datos['delta_pct'])
+        self.assertEqual(datos['direction'], 'flat')
+
+
+@override_settings(CACHES=TEST_CACHES)
+class EvolutionInEndpointsTests(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.staff = User.objects.create_user(username='staffev', email='se@example.com', is_staff=True)
+        cls.token = Token.objects.create(user=cls.staff)
+        cls.project = _make_project(cls.staff, 'Del staff')
+        _make_observation(cls.project, created_at=timezone.now() - timedelta(days=1),
+                          creator=cls.staff)
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+
+    def test_platform_exposes_the_platform_series_and_the_comparison(self):
+        data = self.client.get(reverse('stats_platform')).data
+        self.assertIn('series_by_platform', data)
+        self.assertIn('comparison', data)
+        for clave in ('observations', 'users', 'projects_created', 'projects_published'):
+            self.assertIn(clave, data['comparison'])
+            self.assertIn('delta_pct', data['comparison'][clave])
+
+    def test_me_exposes_contributors_over_time(self):
+        data = self.client.get(reverse('stats_me')).data
+        self.assertIn('contributors', data['series'])
+        self.assertIn('by_platform', data['series'])
+        self.assertIn('observations', data['comparison'])
+
+    def test_project_exposes_contributors_over_time(self):
+        data = self.client.get(reverse('stats_project', args=[self.project.id])).data
+        self.assertIn('contributors', data['series'])
+        self.assertIn('by_platform', data['series'])
+        self.assertIn('observations', data['comparison'])

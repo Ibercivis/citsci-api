@@ -314,3 +314,126 @@ def abandoned_projects(project_qs, lang='es', limit=10, now=None):
         }
         for r in rows
     ]
+
+
+def compare_periods(queryset, field, since, until):
+    """
+    Un numero del periodo con su comparacion contra el periodo anterior de la misma duracion.
+
+    Un "114 observaciones" solo no dice nada; "114, un 57% menos que el periodo anterior" es lo que
+    hace que alguien abra el panel. Si el periodo anterior es 0 no se inventa un porcentaje.
+    """
+    length = until - since
+    value = queryset.filter(**{f'{field}__gte': since, f'{field}__lt': until}).count()
+    previous = queryset.filter(**{f'{field}__gte': since - length, f'{field}__lt': since}).count()
+
+    direction = 'flat'
+    if value > previous:
+        direction = 'up'
+    elif value < previous:
+        direction = 'down'
+
+    return {
+        'value': value,
+        'previous': previous,
+        'delta_pct': round((value - previous) * 100 / previous) if previous else None,
+        'direction': direction,
+    }
+
+
+def contributor_timeseries(observation_qs, since, until, granularity='month'):
+    """
+    Personas distintas por periodo, separando las que estrenan de las que repiten.
+
+    Es lo que la serie de observaciones no dice: 200 observaciones de 40 personas y 200 de una sola
+    se ven igual mirando solo el volumen.
+
+    Los anonimos cuentan por `anonymous_id`, que es lo mas cerca que se puede estar de "un
+    navegador". Solo sale la cardinalidad, nunca el identificador.
+    """
+    if since >= until:
+        return []
+
+    trunc = TruncWeek if granularity == 'week' else TruncMonth
+
+    # Distintos por periodo, en una query
+    filas = (
+        observation_qs
+        .filter(created_at__gte=since, created_at__lt=until)
+        .annotate(period=trunc('created_at'))
+        .values('period')
+        .annotate(
+            registered=Count('creator_id', distinct=True),
+            anonymous=Count('anonymous_id', distinct=True),
+        )
+    )
+    por_periodo = {f['period']: (f['registered'], f['anonymous']) for f in filas if f['period']}
+
+    # Primera aparicion de cada contribuidor en TODO el historico del queryset, para saber quien
+    # estrena en cada periodo. Dos queries mas, una por tipo de contribuidor.
+    estrenos = {}
+    for campo in ('creator_id', 'anonymous_id'):
+        primeras = (
+            observation_qs
+            .filter(**{f'{campo}__isnull': False})
+            .values(campo)
+            .annotate(primera=Min('created_at'))
+            .values_list('primera', flat=True)
+        )
+        for momento in primeras:
+            if since <= momento < until:
+                cubo = _truncate(momento, granularity)
+                estrenos[cubo] = estrenos.get(cubo, 0) + 1
+
+    serie = []
+    for inicio in _period_starts(since, until, granularity):
+        registrados, anonimos = por_periodo.get(inicio, (0, 0))
+        total = registrados + anonimos
+        nuevos = min(estrenos.get(inicio, 0), total)
+        serie.append({
+            'period': inicio.date().isoformat(),
+            'total': total,
+            'registered': registrados,
+            'anonymous': anonimos,
+            'new': nuevos,
+            'recurring': total - nuevos,
+        })
+    return serie
+
+
+def platform_timeseries(observation_qs, since, until, granularity='month'):
+    """Observaciones por periodo separadas por plataforma, para ver si la web despega o no."""
+    if since >= until:
+        return []
+
+    trunc = TruncWeek if granularity == 'week' else TruncMonth
+    filas = (
+        observation_qs
+        .filter(created_at__gte=since, created_at__lt=until)
+        .annotate(period=trunc('created_at'))
+        .values('period')
+        .annotate(
+            mobile=Count('id', filter=Q(platform=Observation.PLATFORM_MOBILE)),
+            web=Count('id', filter=Q(platform=Observation.PLATFORM_WEB)),
+            unknown=Count('id', filter=Q(platform__isnull=True)),
+        )
+    )
+    por_periodo = {f['period']: f for f in filas if f['period']}
+    serie = []
+    for inicio in _period_starts(since, until, granularity):
+        fila = por_periodo.get(inicio)
+        serie.append({
+            'period': inicio.date().isoformat(),
+            'mobile': fila['mobile'] if fila else 0,
+            'web': fila['web'] if fila else 0,
+            'unknown': fila['unknown'] if fila else 0,
+        })
+    return serie
+
+
+def _truncate(momento, granularity):
+    """Inicio del cubo al que pertenece un instante, igual que hace TruncMonth/TruncWeek."""
+    momento = momento.replace(hour=0, minute=0, second=0, microsecond=0)
+    if granularity == 'week':
+        return momento - timedelta(days=momento.weekday())
+    return momento.replace(day=1)

@@ -104,6 +104,18 @@ información no aparece en los otros dos endpoints, a propósito.
     "users_cumulative": [ … ]
   },
 
+  "series_by_platform": [
+    { "period": "2026-08-01", "mobile": 332, "web": 46, "unknown": 0 }
+  ],
+
+  // Variación frente al periodo anterior de la misma duración, ya calculada
+  "comparison": {
+    "observations":      { "value": 378, "previous": 344, "delta_pct": 10, "direction": "up" },
+    "users":             { … },
+    "projects_created":  { … },
+    "projects_published": { "value": 1, "previous": 0, "delta_pct": null, "direction": "up" }
+  },
+
   "top": {
     "projects_by_observations": [
       { "id": 172, "name": "Life-Nitrazens", "observations": 621, "published": true }
@@ -130,7 +142,13 @@ proyecto. **No trae `top`.**
   "projects": { … },        // mismas claves que arriba
   "observations": { … },
   "contributors": { "registered": 31, "anonymous": 2, "total": 33 },
-  "series": { "observations": [ … ], "observations_cumulative": [ … ] },
+  "series": {
+    "observations": [ … ],
+    "observations_cumulative": [ … ],
+    "contributors": [ … ],     // ver más abajo
+    "by_platform": [ … ]
+  },
+  "comparison": { "observations": { "value": 378, "previous": 344, "delta_pct": 10, "direction": "up" } },
   "per_project": [
     {
       "id": 172,
@@ -166,7 +184,13 @@ Un solo proyecto. **No trae `top`.**
   "observations": { … },
   "contributors": { "registered": 31, "anonymous": 2, "total": 33 },
   "span": { "first_observation": "…", "last_observation": "…" },  // null si no hay ninguna
-  "series": { "observations": [ … ], "observations_cumulative": [ … ] },
+  "series": {
+    "observations": [ … ],
+    "observations_cumulative": [ … ],
+    "contributors": [ … ],
+    "by_platform": [ … ]
+  },
+  "comparison": { "observations": { "value": 195, "previous": 234, "delta_pct": -17, "direction": "down" } },
   "cached": false
 }
 ```
@@ -202,6 +226,51 @@ datos por otro sitio.
 
 **`total` vs `active` en usuarios**: hoy coinciden (784/784) porque no hay nadie desactivado. No
 asumáis que siempre será así.
+
+---
+
+## Evolución: qué series hay y cuál usar
+
+Todas aceptan `from`, `to` y `granularity`, vienen ordenadas, **con los huecos rellenos a 0** y con
+el acumulado arrancando de lo que hubiera antes de `from`. Un rango vacío devuelve `[]`, no un error.
+
+| Serie | Dónde | Qué mide |
+|---|---|---|
+| `observations` / `_cumulative` | los tres | volumen de observaciones |
+| `users` / `_cumulative` | plataforma | altas de usuarios |
+| `projects_created` / `_cumulative` | plataforma | proyectos creados |
+| `projects_published` / `_cumulative` | plataforma | **primeras** publicaciones |
+| `series_by_platform` | plataforma | móvil / web / sin registrar |
+| `contributors` | `/me/` y proyecto | **personas distintas, nuevas vs. recurrentes** |
+| `by_platform` | `/me/` y proyecto | móvil / web / sin registrar |
+
+### `contributors` es la que de verdad cuenta la historia
+
+La serie de observaciones no distingue un proyecto con 200 observaciones de 40 personas de otro con
+200 de una sola. Esta sí:
+
+```jsonc
+{ "period": "2026-07-01", "total": 69, "registered": 69, "anonymous": 0, "new": 64, "recurring": 5 }
+```
+
+- `new`: personas cuya **primera observación de ese proyecto** cae en ese periodo.
+- `recurring`: las que ya habían participado antes.
+- `anonymous`: contribuciones por QR, contadas por navegador. **Solo sale la cardinalidad, nunca el
+  identificador.**
+
+Ejemplo real de Life-Nitrazens: jun 22 (22 nuevas) · jul 69 (64 nuevas, 5 repiten) · ago 38 (26
+nuevas, 12 repiten) · sep 6 (2 nuevas, 4 repiten). Capta gente cada mes pero **retiene poco** — eso
+no se ve en la serie de volumen, donde julio y agosto se parecen.
+
+### `comparison`: la variación ya calculada
+
+```jsonc
+"observations": { "value": 378, "previous": 344, "delta_pct": 10, "direction": "up" }
+```
+
+`delta_pct` es **`null` cuando el periodo anterior fue 0**: no se inventa un porcentaje sobre cero.
+En ese caso mostrad "sin datos del periodo anterior" y no un "+100%". `direction` es `up`, `down` o
+`flat`.
 
 ---
 
@@ -308,7 +377,6 @@ elemento principal, marcando los que tienen `active_30d: false`.
 
 ## Lo que aún no hay, por si lo pedís
 
-- Variación respecto al periodo anterior **por API** (existe, pero solo dentro del email mensual).
 - Nombres de los proyectos abandonados por API (hoy solo en el email mensual).
 - El histórico de `ProjectStatusLog` (publicado / despublicado / republicado / finalizado).
 - Estadísticas por pregunta del formulario, o sea la distribución de respuestas. Es lo más pedido y

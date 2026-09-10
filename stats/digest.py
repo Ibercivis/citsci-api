@@ -50,34 +50,9 @@ def digest_window(period, now=None):
 
 
 def _headline(label, queryset, field, since, until):
-    """
-    Un numero del periodo con su comparacion contra el periodo anterior de la misma duracion.
-
-    Un "114 observaciones" solo no dice nada; "114, un 32% menos que la quincena anterior" es lo
-    que hace que alguien abra el panel.
-    """
-    length = until - since
-    value = queryset.filter(**{f'{field}__gte': since, f'{field}__lt': until}).count()
-    previous = queryset.filter(
-        **{f'{field}__gte': since - length, f'{field}__lt': since}).count()
-
-    if previous:
-        delta_pct = round((value - previous) * 100 / previous)
-    else:
-        delta_pct = None  # sin base de comparacion no se inventa un porcentaje
-    direction = 'flat'
-    if value > previous:
-        direction = 'up'
-    elif value < previous:
-        direction = 'down'
-
-    return {
-        'label': label,
-        'value': value,
-        'previous': previous,
-        'delta_pct': delta_pct,
-        'direction': direction,
-    }
+    """Etiqueta + la comparativa que ya calcula metrics.compare_periods."""
+    datos = metrics.compare_periods(queryset, field, since, until)
+    return {'label': label, **datos}
 
 
 def _bars(series):

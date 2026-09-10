@@ -130,6 +130,17 @@ class PlatformStatsView(GenericAPIView):
                 'users': users_series,
                 'users_cumulative': users_cumulative,
             },
+            'series_by_platform': metrics.platform_timeseries(
+                observations, since, until, granularity),
+            # Cada cifra con su variacion frente al periodo anterior de la misma duracion. Sin esto
+            # el panel tiene que calcularla a mano o no mostrarla.
+            'comparison': {
+                'observations': metrics.compare_periods(observations, 'created_at', since, until),
+                'users': metrics.compare_periods(User.objects.all(), 'date_joined', since, until),
+                'projects_created': metrics.compare_periods(projects, 'created_at', since, until),
+                'projects_published': metrics.compare_periods(
+                    projects.filter(published_at__isnull=False), 'published_at', since, until),
+            },
             'top': {
                 'projects_by_observations': metrics.top_projects(projects, lang=lang),
                 'creators_by_observations': metrics.top_creators(projects, lang=lang),
@@ -185,6 +196,15 @@ class MyStatsView(GenericAPIView):
             'series': {
                 'observations': series,
                 'observations_cumulative': cumulative,
+                # Lo que la serie de observaciones no dice: 200 observaciones de 40 personas y 200
+                # de una sola se ven igual mirando solo el volumen.
+                'contributors': metrics.contributor_timeseries(
+                    observations, since, until, granularity),
+                'by_platform': metrics.platform_timeseries(
+                    observations, since, until, granularity),
+            },
+            'comparison': {
+                'observations': metrics.compare_periods(observations, 'created_at', since, until),
             },
             'per_project': metrics.per_project_summary(projects, lang=lang, now=now),
             'cached': False,
@@ -250,6 +270,13 @@ class ProjectStatsView(GenericAPIView):
             'series': {
                 'observations': series,
                 'observations_cumulative': cumulative,
+                'contributors': metrics.contributor_timeseries(
+                    observations, since, until, granularity),
+                'by_platform': metrics.platform_timeseries(
+                    observations, since, until, granularity),
+            },
+            'comparison': {
+                'observations': metrics.compare_periods(observations, 'created_at', since, until),
             },
             'cached': False,
         }
