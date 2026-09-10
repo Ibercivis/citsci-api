@@ -24,8 +24,10 @@ distintos. Un solo sitio donde arreglar los bugs de conteo.
 | 2026-09-10 | Fase 2 — `metrics.py` + `/api/stats/platform/` | **Desplegada en producción.** |
 | 2026-09-10 | Fase 3 — stats por creador y por proyecto | **Desplegada en producción.** |
 | 2026-09-10 | Fase 4 — avisos por evento | **Desplegada y probada con un envío real.** |
-| 2026-09-10 | Fase 5 — scheduler + resumen quincenal | **Desplegada.** Primer envío: 15-sep-2026, 08:00 Madrid. |
-| — | Fases 6-7 | Pendientes (futuro y tests ya cubiertos sobre la marcha). |
+| 2026-09-10 | Fase 5 — scheduler + resumen mensual | **Desplegada.** Primer envío: 1-oct-2026, 08:00 Madrid. |
+| 2026-09-10 | Extra — informe mensual por proyecto | **Desplegado.** Primer envío: 1-oct-2026, 09:00 Madrid. |
+| 2026-09-10 | Fase 7 — tests | **120 tests**, escritos en cada fase. |
+| — | Fase 6 — futuro | Sin empezar, no bloquea nada. |
 
 **Fase 1, detalle del despliegue (2026-09-10):**
 - Commits `56cfce9` (código) y `aaf12c4` (este plan), en `vjorge`.
@@ -111,6 +113,24 @@ distintos. Un solo sitio donde arreglar los bugs de conteo.
 - `manage.py send_stats_digest --dry-run` verificado con datos reales.
 - 94 tests OK.
 
+**Informe por proyecto (2026-09-10), añadido después del plan original:**
+- `Project.email_monthly_stats` (migración `project/0043`), activado por defecto y expuesto en el
+  serializer. Al revés que `email_on_observation`: aquí el defecto no genera ruido porque el
+  informe solo sale si hubo actividad.
+- Dos correos según el caso: **informe** si hubo observaciones, **aviso de inactividad** si el
+  proyecto está publicado y parado. Un borrador parado no recibe nada (24 borradores sin actividad
+  frente a 1 publicado: avisarles a todos sería ruido).
+- El aviso lleva `Reply-To: info@ibercivis.es` y pie propio; `base.html` gana un bloque
+  `footer_note` que por defecto no cambia nada. Tope de **3 avisos seguidos**.
+- Contribuidores **nuevos vs. recurrentes**, que es el dato que el resumen global no da.
+- Programado el día 1 a las 09:00 locales, una hora después del de plataforma.
+- **El día 1 saldrían 85 correos** a 13 proyectos. Ojo con dos: `Salud en el Partido de Escobar`
+  tiene 37 administradores, y `Test-backend` (id 169) parece un proyecto de pruebas que recibiría
+  informe. Se arregla con el flag o marcándolo como terminado.
+- Probado enviando el informe de Life-Nitrazens **solo a frasanz@ibercivis.es**, no a sus 11
+  destinatarios reales: nueve son externos (`@ubu.es`, `@cita-aragon.es`, `@carsa.es`) y no les ha
+  avisado nadie de esta funcionalidad.
+
 ## Hallazgos ajenos a este trabajo (anotados, no tocados)
 - **`POST /api/project/invitations/<id>/accept/` devuelve 500 de forma recurrente.** 45 de los 54
   errores 500 del log de producción entre el 14-jul y el 8-sep-2026 son de ese endpoint, y son los
@@ -118,6 +138,11 @@ distintos. Un solo sitio donde arreglar los bugs de conteo.
   su propia sesión.
 - 430 observaciones (29%) tienen `platform` a NULL. No se esconden: salen como `unknown`.
 - 29 invitaciones de proyecto llevan en `pending` sin que nada las marque como `expired`.
+- **El handler `mail_admins` de `LOGGING` tiene el backend clavado a SMTP**
+  (`'email_backend': 'django.core.mail.backends.smtp.EmailBackend'`), así que **se salta el backend
+  en memoria que Django activa durante los tests** y manda correos reales a `ADMINS` por el postfix
+  local en cada error de una prueba. Comentado con el equipo el 2026-09-10 y **decidido dejarlo
+  así**: los errores de las pruebas también interesan.
 - **13 trabajos fallidos antiguos en la cola de rq** (14-mar a 8-sep-2026), todos de `markers`:
   11 de `send_post_observation_email` y 2 de `send_observation_email`. Los errores son de tres
   tipos: `MessageRejected` de SES, `ImportError: cannot import name 'FullResultSet' from
@@ -444,22 +469,22 @@ stdout_logfile=/var/log/supervisor/citsci-scheduler.out.log
 - [ ] Export del panel a CSV/XLSX reutilizando los helpers de `DownloadObservationsCSV`
       (`markers/api/views.py:846-898`).
 
-## Fase 7 — Tests
+## Fase 7 — Tests ✅ (escritos sobre la marcha en cada fase)
 Los tests requieren `--keepdb` en este servidor: el usuario `citsci` no puede crear bases de datos ni
 la extensión postgis. `venv/bin/python manage.py test stats --keepdb`.
-- [ ] `metrics.py` con datos sembrados: conteos correctos con draft/ended/privados mezclados.
-- [ ] `/api/stats/platform/` → 403 para usuario normal, 401 sin token, 200 para `is_staff`.
-- [ ] `/api/stats/me/` no incluye proyectos ajenos; el administrador ve los que administra.
-- [ ] `anonymous_id` no aparece en ninguna respuesta de stats.
-- [ ] Series: rangos vacíos devuelven listas vacías, no huecos ni error.
-- [ ] Número de queries acotado (`assertNumQueries`) para que nadie reintroduzca el N+1 de
+- [x] `metrics.py` con datos sembrados: conteos correctos con draft/ended/privados mezclados.
+- [x] `/api/stats/platform/` → 403 para usuario normal, 401 sin token, 200 para `is_staff`.
+- [x] `/api/stats/me/` no incluye proyectos ajenos; el administrador ve los que administra.
+- [x] `anonymous_id` no aparece en ninguna respuesta de stats.
+- [x] Series: rangos vacíos devuelven listas vacías, no huecos ni error.
+- [x] Número de queries acotado (`assertNumQueries`) para que nadie reintroduzca el N+1 de
       `Project.contributions`.
-- [ ] `send_stats_digest --dry-run` no envía y calcula la ventana desde el último log.
-- [ ] Idempotencia: dos ejecuciones seguidas del mismo periodo → un solo email.
-- [ ] Publicar un proyecto encola exactamente una notificación; guardarlo otra vez ya publicado, cero.
-- [ ] **Ciclo draft → publicado → draft → publicado**: cuatro filas en `ProjectStatusLog`, tres
+- [x] `send_stats_digest --dry-run` no envía y calcula la ventana desde el último log.
+- [x] Idempotencia: dos ejecuciones seguidas del mismo periodo → un solo email.
+- [x] Publicar un proyecto encola exactamente una notificación; guardarlo otra vez ya publicado, cero.
+- [x] **Ciclo draft → publicado → draft → publicado**: cuatro filas en `ProjectStatusLog`, tres
       emails (publicado, despublicado, republicado) y `published_at` **inalterado** desde la primera.
-- [ ] `active_30d` usa `Observation.created_at`: una observación con `timestamp` en el futuro no
+- [x] `active_30d` usa `Observation.created_at`: una observación con `timestamp` en el futuro no
       marca el proyecto como activo.
 
 ---
