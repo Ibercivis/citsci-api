@@ -23,8 +23,9 @@ distintos. Un solo sitio donde arreglar los bugs de conteo.
 | 2026-09-10 | Fase 1 — modelo y migraciones | **Desplegada en producción.** |
 | 2026-09-10 | Fase 2 — `metrics.py` + `/api/stats/platform/` | **Desplegada en producción.** |
 | 2026-09-10 | Fase 3 — stats por creador y por proyecto | **Desplegada en producción.** |
-| — | Fase 4 — notificaciones por evento | Siguiente. |
-| — | Fases 5-7 | Sin empezar. |
+| 2026-09-10 | Fase 4 — avisos por evento | **Desplegada en producción.** Pendiente un envío real de prueba. |
+| — | Fase 5 — scheduler + resumen quincenal | Siguiente. |
+| — | Fases 6-7 | Sin empezar. |
 
 **Fase 1, detalle del despliegue (2026-09-10):**
 - Commits `56cfce9` (código) y `aaf12c4` (este plan), en `vjorge`.
@@ -72,6 +73,21 @@ distintos. Un solo sitio donde arreglar los bugs de conteo.
   | `anonymous_id` en la respuesta | ausente |
 
 - 67 tests OK. 0 errores 5xx en el día.
+
+**Fase 4, detalle del despliegue (2026-09-10):**
+- Eventos: proyecto creado / publicado / republicado / despublicado / finalizado / reabierto,
+  organización nueva, e hitos de 1, 10, 100 y 1000 observaciones.
+- Se reinició también `citsci-worker`: la cola necesita el módulo `stats.tasks` nuevo.
+- Verificado en producción con la config real (SES, `geonity@ibercivis.es`, los 4 destinatarios)
+  pero con el backend en memoria, así que **no se envió ningún correo**. El render sale bien y el
+  worker está vivo escuchando `citisciapi`.
+- 79 tests OK.
+- **Pendiente: un envío real de prueba.** Lo suyo es apuntar temporalmente
+  `PLATFORM_NOTIFICATION_EMAILS` a una sola dirección, encolar un aviso, comprobar que llega y
+  restaurar la lista. Hasta entonces, el primer correo real saldrá solo cuando alguien cree,
+  publique o despublique un proyecto de verdad.
+- Salió al escribir los tests: **el serializer exige más de 10 observaciones para publicar**, así
+  que publicar nunca ocurre sobre un proyecto vacío.
 
 ## Hallazgos ajenos a este trabajo (anotados, no tocados)
 - **`POST /api/project/invitations/<id>/accept/` devuelve 500 de forma recurrente.** 45 de los 54
@@ -315,28 +331,28 @@ los niveles inferiores.
       plan del QR: solo truncado a 8 caracteres en la descarga). Nada de listar emails de
       contribuidores. Respetar `fuzzy` y `private_data` si alguna métrica llega a tocar geometría.
 
-## Fase 4 — Notificaciones por evento
-- [ ] Task `stats/tasks.py: notify_platform_event(status_log_id, lang)`, encolada en `citisciapi`
+## Fase 4 — Notificaciones por evento ✅ (desplegada 2026-09-10)
+- [x] Task `stats/tasks.py: notify_platform_event(status_log_id, lang)`, encolada en `citisciapi`
       dentro de try/except, como `markers/api/views.py:167`.
-- [ ] Eventos de salida: **proyecto creado**, **proyecto publicado**, **proyecto despublicado**,
+- [x] Eventos de salida: **proyecto creado**, **proyecto publicado**, **proyecto despublicado**,
       **organización nueva**, e hitos del proyecto (primera observación, y al cruzar 10 / 100 / 1000).
 - [x] `PLATFORM_NOTIFICATION_EMAILS` y `PLATFORM_NOTIFICATION_TIMEZONE` ya están en `settings.py` y
       en el `local.env` de producción y del clon (commiteado sin desplegar: todavía no los lee nadie).
       Si la lista viene vacía, el envío se registra como `failed` en `NotificationLog` con el motivo,
       en vez de reventar la tarea.
-- [ ] **Idempotencia: la fila de `ProjectStatusLog` es la clave.**
+- [x] **Idempotencia: la fila de `ProjectStatusLog` es la clave.**
       `period_key = f'project-status-{log.id}'`. Un reintento de rq no duplica el correo, y una
       segunda publicación **sí** manda el suyo porque es otra fila. Sin el log habría que inventarse
       una clave por número de publicación, que es justo donde salen los bugs.
-- [ ] Escribir la fila del log **explícitamente** en el update de la vista/serializer cuando cambia
+- [x] Escribir la fila del log **explícitamente** en el update de la vista/serializer cuando cambia
       `draft`, y encolar ahí. Explícito y testeable; se descarta el `post_save` comparando estado
       previo, que es más frágil y se dispara cuatro veces con los cuatro workers de uwsgi.
-- [ ] El asunto y el cuerpo **dejan clara la transición**: "Proyecto publicado: X — creado el 3 de
+- [x] El asunto y el cuerpo **dejan clara la transición**: "Proyecto publicado: X — creado el 3 de
       marzo, publicado hoy (11 días)". Una segunda publicación se marca como **republicado**, no
       como estreno.
-- [ ] Registro de usuario nuevo: **no** por evento (783 usuarios, sería ruido). Va al resumen.
-- [ ] Plantilla `templates/email/platform_notification.html` extendiendo `base.html`.
-- [ ] Cada envío escribe en `NotificationLog` con su `status`/`error`, igual que
+- [x] Registro de usuario nuevo: **no** por evento (783 usuarios, sería ruido). Va al resumen.
+- [x] Plantilla `templates/email/platform_notification.html` extendiendo `base.html`.
+- [x] Cada envío escribe en `NotificationLog` con su `status`/`error`, igual que
       `ObservationEmailLog` (`markers/models.py:139`).
 
 ## Fase 5 — Resumen periódico y scheduler
