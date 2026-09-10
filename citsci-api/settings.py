@@ -296,6 +296,13 @@ RQ_QUEUES = {
     }
 }
 
+# Durante los tests la cola apunta a otra DB de Redis. Los tests usan su propia base de datos, pero
+# django_rq NO se sustituye solo: `manage.py test` estaba encolando trabajos reales en la cola de
+# produccion. El 2026-09-10 aparecieron 8 jobs basura de la suite (project-milestone de proyectos
+# que solo existen en la BD de test). Nadie consume la DB 15, asi que ahi se quedan y caducan.
+if 'test' in sys.argv:
+    RQ_QUEUES['citisciapi']['DB'] = 15
+
 ADMINS = [('Ibercivis', 'frasanz@ibercivis.es')]
 
 # Destinatarios de los avisos de plataforma: proyecto creado/publicado/despublicado, organizacion

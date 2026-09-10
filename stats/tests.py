@@ -468,3 +468,17 @@ class SendPlatformNotificationTests(TestCase):
         context.update(milestone=100, event_label='ha alcanzado 100 observaciones')
         send_platform_notification('project-milestone', 'project-7-milestone-100', context)
         self.assertIn('Proyecto: 100 observaciones', mail.outbox[0].subject)
+
+
+class QueueIsolationTests(TestCase):
+    """
+    Guardarraíl: `manage.py test` no puede encolar en la cola de producción.
+
+    Pasó el 2026-09-10 — la suite metió 8 jobs `project-milestone` en la cola real, de proyectos
+    que solo existen en la base de test. Fallaron porque el worker aún no tenía el módulo, pero con
+    el código ya desplegado habrían salido correos de verdad a los cuatro destinatarios.
+    """
+
+    def test_the_queue_points_to_a_scratch_redis_db_while_testing(self):
+        from django.conf import settings
+        self.assertEqual(settings.RQ_QUEUES['citisciapi']['DB'], 15)
