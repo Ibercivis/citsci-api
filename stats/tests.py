@@ -1,6 +1,8 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
+from django.core import mail
 from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -13,6 +15,7 @@ from markers.models import Observation
 from project.models import Project
 from stats import metrics
 from stats.models import NotificationLog
+from stats.tasks import send_platform_notification
 
 # La cache por defecto es el Redis de produccion: los tests usan locmem para no escribir ahi ni
 # arrastrar estado entre ejecuciones. Vale tambien para el throttle, que se apoya en la cache.
@@ -333,3 +336,135 @@ class ProjectLevelStatsTests(APITestCase):
         self.assertTrue(row['active_30d'])
         self.assertEqual(row['observations'], 2)
         self.assertTrue(row['published'])
+
+
+@override_settings(CACHES=TEST_CACHES)
+class ProjectEventTests(APITestCase):
+    """
+    El ciclo de vida de un proyecto y los avisos que genera. `draft` es reversible, asi que lo que
+    se fija aqui es que published_at NO se reescriba y que cada transicion sea su propia fila.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.creator = User.objects.create_user(username='autora', email='a@example.com')
+        cls.token = Token.objects.create(user=cls.creator)
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        self.project = _make_project(self.creator, 'Ciclo', draft=True)
+        # El serializer exige mas de 10 observaciones para dejar publicar un proyecto.
+        for _ in range(11):
+            _make_observation(self.project, created_at=timezone.now(), creator=self.creator)
+        self.url = f'/api/project/{self.project.id}/'
+
+    def _patch(self, **payload):
+        with patch('stats.events._enqueue') as enqueue:
+            response = self.client.patch(self.url, payload, format='json')
+        self.project.refresh_from_db()
+        return response, enqueue
+
+    def test_publishing_records_one_event_and_sets_published_at(self):
+        response, enqueue = self._patch(draft=False)
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNotNone(self.project.published_at)
+        self.assertEqual(self.project.status_log.filter(event='published').count(), 1)
+        self.assertEqual(enqueue.call_count, 1)
+        self.assertEqual(enqueue.call_args[0][0], 'project-published')
+
+    def test_saving_an_already_published_project_records_nothing(self):
+        self._patch(draft=False)
+        _, enqueue = self._patch(name='Ciclo renombrado')
+        self.assertEqual(enqueue.call_count, 0)
+        self.assertEqual(self.project.status_log.filter(event='published').count(), 1)
+
+    def test_unpublishing_records_its_own_event(self):
+        self._patch(draft=False)
+        _, enqueue = self._patch(draft=True)
+        self.assertEqual(enqueue.call_args[0][0], 'project-unpublished')
+        self.assertEqual(self.project.status_log.filter(event='unpublished').count(), 1)
+
+    def test_full_cycle_keeps_the_first_published_at(self):
+        """draft -> publicado -> draft -> publicado: 3 eventos, y published_at el de la primera."""
+        self._patch(draft=False)
+        first_published_at = self.project.published_at
+        self._patch(draft=True)
+        _, enqueue = self._patch(draft=False)
+
+        self.assertEqual(self.project.published_at, first_published_at)
+        self.assertEqual(enqueue.call_args[0][0], 'project-republished')
+        events = list(self.project.status_log.order_by('at', 'id').values_list('event', flat=True))
+        self.assertEqual(events, ['published', 'unpublished', 'published'])
+
+    def test_each_transition_has_its_own_idempotency_key(self):
+        self._patch(draft=False)
+        self._patch(draft=True)
+        _, enqueue = self._patch(draft=False)
+        keys = [
+            call[0][1] for call in enqueue.call_args_list
+        ]
+        self.assertEqual(len(keys), len(set(keys)), 'las claves de idempotencia no pueden repetirse')
+
+    def test_ending_and_reopening(self):
+        _, enqueue = self._patch(ended=True)
+        self.assertEqual(enqueue.call_args[0][0], 'project-ended')
+        _, enqueue = self._patch(ended=False)
+        self.assertEqual(enqueue.call_args[0][0], 'project-reopened')
+
+
+@override_settings(
+    CACHES=TEST_CACHES,
+    EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+    PLATFORM_NOTIFICATION_EMAILS=['uno@example.com', 'dos@example.com'],
+)
+class SendPlatformNotificationTests(TestCase):
+    def setUp(self):
+        mail.outbox = []
+
+    def _context(self):
+        return {'project_id': 7, 'project_name': 'Proyecto', 'creator': 'autora',
+                'created_at': '2026-09-10T10:00:00', 'published_at': '', 'draft': False,
+                'ended': False, 'url': 'https://example.com/project/7', 'event_label': 'publicado'}
+
+    def test_sends_the_email_and_records_it(self):
+        send_platform_notification('project-published', 'project-status-1', self._context())
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('Proyecto publicado: Proyecto', mail.outbox[0].subject)
+        self.assertEqual(sorted(mail.outbox[0].to), ['dos@example.com', 'uno@example.com'])
+        log = NotificationLog.objects.get(event='project-published', period_key='project-status-1')
+        self.assertEqual(log.status, NotificationLog.STATUS_SENT)
+        self.assertIsNotNone(log.sent_at)
+
+    def test_a_repeated_job_does_not_send_twice(self):
+        """Es el motivo de existir de NotificationLog: rq reintenta y el correo no puede duplicarse."""
+        send_platform_notification('project-published', 'project-status-1', self._context())
+        send_platform_notification('project-published', 'project-status-1', self._context())
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(NotificationLog.objects.count(), 1)
+
+    def test_a_different_transition_does_send(self):
+        send_platform_notification('project-published', 'project-status-1', self._context())
+        send_platform_notification('project-republished', 'project-status-9', self._context())
+        self.assertEqual(len(mail.outbox), 2)
+
+    @override_settings(PLATFORM_NOTIFICATION_EMAILS=[])
+    def test_without_recipients_it_records_the_failure_instead_of_crashing(self):
+        send_platform_notification('project-published', 'project-status-2', self._context())
+        self.assertEqual(len(mail.outbox), 0)
+        log = NotificationLog.objects.get(period_key='project-status-2')
+        self.assertEqual(log.status, NotificationLog.STATUS_FAILED)
+        self.assertIn('vacio', log.error)
+
+    def test_organization_event(self):
+        send_platform_notification('organization-created', 'organization-3', {
+            'organization_id': 3, 'organization_name': 'Ibercivis', 'creator': 'fran',
+            'event_label': 'creada', 'url': 'https://example.com/organization/3'})
+        self.assertIn('Nueva organizacion: Ibercivis', mail.outbox[0].subject)
+
+    def test_milestone_event(self):
+        context = self._context()
+        context.update(milestone=100, event_label='ha alcanzado 100 observaciones')
+        send_platform_notification('project-milestone', 'project-7-milestone-100', context)
+        self.assertIn('Proyecto: 100 observaciones', mail.outbox[0].subject)

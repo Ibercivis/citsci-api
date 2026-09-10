@@ -1,0 +1,56 @@
+{% extends "email/base.html" %}
+{% load i18n %}
+
+{% block subject %}{{ subject }}{% endblock %}
+
+{% block content %}
+  <h1 style="margin:0 0 16px 0;font-size:24px;font-weight:700;color:#111827;">
+    {% if organization_name %}{{ organization_name }}{% else %}{{ project_name }}{% endif %}
+  </h1>
+  <p style="margin:0 0 20px 0;font-size:15px;line-height:1.6;color:#6b7585;">
+    {% blocktrans %}Aviso de plataforma: {{ event_label }}.{% endblocktrans %}
+  </p>
+
+  <table cellpadding="0" cellspacing="0" width="100%" style="background-color:#f0f2f8;border-left:4px solid #2563eb;border-radius:0 8px 8px 0;margin-bottom:28px;">
+    <tr>
+      <td style="padding:16px 20px;">
+        {% if project_id %}
+        <p style="margin:0 0 8px 0;font-size:14px;line-height:1.6;color:#6b7585;">
+          {% trans "Proyecto" %}: <strong style="color:#111827;">#{{ project_id }}</strong>
+        </p>
+        {% endif %}
+        {% if organization_id %}
+        <p style="margin:0 0 8px 0;font-size:14px;line-height:1.6;color:#6b7585;">
+          {% trans "Organización" %}: <strong style="color:#111827;">#{{ organization_id }}</strong>
+        </p>
+        {% endif %}
+        {% if creator %}
+        <p style="margin:0 0 8px 0;font-size:14px;line-height:1.6;color:#6b7585;">
+          {% trans "Creado por" %}: <strong style="color:#111827;">{{ creator }}</strong>
+        </p>
+        {% endif %}
+        {% if created_at %}
+        <p style="margin:0 0 8px 0;font-size:14px;line-height:1.6;color:#6b7585;">
+          {% trans "Fecha de creación" %}: {{ created_at }}
+        </p>
+        {% endif %}
+        {% if published_at %}
+        <p style="margin:0 0 8px 0;font-size:14px;line-height:1.6;color:#6b7585;">
+          {% trans "Primera publicación" %}: {{ published_at }}
+        </p>
+        {% endif %}
+        {% if milestone %}
+        <p style="margin:0;font-size:15px;line-height:1.6;color:#111827;">
+          <strong>{{ milestone }}</strong> {% trans "observaciones" %}
+        </p>
+        {% endif %}
+      </td>
+    </tr>
+  </table>
+
+  {% if url %}
+  <p style="margin:0;">
+    <a href="{{ url }}" style="display:inline-block;background-color:#2563eb;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:15px;font-weight:600;">{% trans "Abrir en Geonity" %}</a>
+  </p>
+  {% endif %}
+{% endblock %}

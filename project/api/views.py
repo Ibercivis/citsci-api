@@ -26,6 +26,7 @@ from markers.models import Observation
 from field_forms.translation import get_language_from_request, resolve_translation
 
 from project.models import Project, Topic, HasTag, ProjectMembership
+from stats.events import record_project_created, record_project_state_change
 from project.api.serializers import (
     ProjectSerializerCreateUpdate, ProjectListSerializer,
     TopicsSerializer, HasTagSerializer, ProjectSerializer, UserSerializer,
@@ -79,6 +80,18 @@ def _parse_request_data(request_data):
     return data
 
 
+def _record_new_project(project, request):
+    """
+    Historico y aviso de proyecto nuevo. Si ademas nace ya publicado (draft=False), se registra
+    tambien la publicacion: el alta y la publicacion son dos eventos distintos.
+    """
+    lang = get_language_from_request(request)
+    record_project_created(project, by=request.user, lang=lang)
+    if not project.draft:
+        record_project_state_change(
+            project, was_draft=True, was_ended=False, by=request.user, lang=lang)
+
+
 class ProjectCreateViewSet(APIView):
     parser_classes = (MultiPartParser, FormParser, JSONParser)
 
@@ -100,6 +113,7 @@ class ProjectCreateViewSet(APIView):
         serializer = ProjectSerializerCreateUpdate(data=data, context={'request': request, 'user': request.user})
         if serializer.is_valid():
             project = serializer.save()
+            _record_new_project(project, request)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -137,7 +151,8 @@ class ProjectListCreate(generics.ListCreateAPIView):
         
         serializer = self.get_serializer(data=data)
         if serializer.is_valid():
-            serializer.save()
+            project = serializer.save()
+            _record_new_project(project, request)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -158,10 +173,18 @@ class ProjectRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
+        # Se anota el estado ANTES de guardar: es lo que permite distinguir publicar de despublicar
+        # y de un guardado que no toca el estado. Explicito y testeable; se descarta el post_save
+        # comparando estado previo, que ademas se dispararia una vez por cada worker de uwsgi.
+        was_draft, was_ended = instance.draft, instance.ended
         data = _parse_request_data(request.data)
         serializer = self.get_serializer(instance, data=data, partial=True, context=self.get_serializer_context())
         if serializer.is_valid():
-            serializer.save()
+            project = serializer.save()
+            record_project_state_change(
+                project, was_draft=was_draft, was_ended=was_ended, by=request.user,
+                lang=get_language_from_request(request),
+            )
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

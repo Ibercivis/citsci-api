@@ -169,6 +169,16 @@ def create_observation(request, field_form, *, creator=None, anonymous_id=None,
         except Exception as e:
             logger.warning(f'Could not enqueue observation notification for observation {observation.id}: {e}')
 
+        # Hitos del proyecto (1, 10, 100, 1000 observaciones). Cuesta un COUNT por alta y va
+        # envuelto en try/except: esto no puede tumbar el alta de una observacion pase lo que pase.
+        try:
+            from stats.events import record_observation_milestone
+            total = Observation.objects.filter(field_form__project_id=field_form.project_id).count()
+            record_observation_milestone(
+                field_form.project, total, lang=get_language_from_request(request))
+        except Exception as e:
+            logger.warning(f'Could not check milestone for project {field_form.project_id}: {e}')
+
         # Ahora que la observación ha sido creada, creamos, validamos y guardamos imágenes y audios
         for question, image in image_files:
             img = ObservationImage(observation=observation, image=image, question=question)

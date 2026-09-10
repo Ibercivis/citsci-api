@@ -15,6 +15,8 @@ from django.db.models import Q, Max
 
 from django.contrib.auth.models import User
 
+from field_forms.translation import get_language_from_request
+from stats.events import record_organization_created
 from organizations.models import Organization, Type, Invitation
 from project.models import Project
 from .serializers import OrganizationSerializer, OrganizationSerializerCreateUpdate, TypeSerializer, InvitationSerializer, InvitationCreateSerializer
@@ -63,7 +65,9 @@ class OrganizationCreateViewSet(APIView):
         serializer = OrganizationSerializerCreateUpdate(
             data=request.data, context={'request': request})
         if serializer.is_valid():
-            serializer.save(creator=request.user)
+            organization = serializer.save(creator=request.user)
+            record_organization_created(
+                organization, lang=get_language_from_request(request))
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
