@@ -24,8 +24,8 @@ distintos. Un solo sitio donde arreglar los bugs de conteo.
 | 2026-09-10 | Fase 2 — `metrics.py` + `/api/stats/platform/` | **Desplegada en producción.** |
 | 2026-09-10 | Fase 3 — stats por creador y por proyecto | **Desplegada en producción.** |
 | 2026-09-10 | Fase 4 — avisos por evento | **Desplegada y probada con un envío real.** |
-| — | Fase 5 — scheduler + resumen quincenal | Siguiente. |
-| — | Fases 6-7 | Sin empezar. |
+| 2026-09-10 | Fase 5 — scheduler + resumen quincenal | **Desplegada.** Primer envío: 15-sep-2026, 08:00 Madrid. |
+| — | Fases 6-7 | Pendientes (futuro y tests ya cubiertos sobre la marcha). |
 
 **Fase 1, detalle del despliegue (2026-09-10):**
 - Commits `56cfce9` (código) y `aaf12c4` (este plan), en `vjorge`.
@@ -96,6 +96,20 @@ distintos. Un solo sitio donde arreglar los bugs de conteo.
   jobs basura se borraron del registro de fallidos.
 - Salió al escribir los tests: **el serializer exige más de 10 observaciones para publicar**, así
   que publicar nunca ocurre sobre un proyecto vacío.
+
+**Fase 5, detalle del despliegue (2026-09-10):**
+- `rq-scheduler==0.13.1` clavado en `requirements.txt`. **La 0.14 exige `rq>=2`**, que subiría `rq`
+  de 1.16.2 a 2.12 y `redis` de 5.0.1 a 8.1 teniendo `django-rq 2.10.2`, de la serie de rq 1.x.
+  Verificado tras instalar que `rq`, `redis` y `django-rq` siguen exactamente igual. Copia del
+  `pip freeze` previo en `/home/ubuntu/backups/`.
+- Program nuevo `citsci-scheduler` en `/etc/supervisor/conf.d/`, RUNNING junto a `citsci-api` y
+  `citsci-worker`.
+- Registrado en la cola real: `geonity-digest-fortnightly`, `0 8 1,15 * *` →
+  `stats.tasks.send_digest['fortnightly']`. **Próxima ejecución: 2026-09-15 06:00 UTC = 08:00 CEST
+  en Madrid.**
+- Comprobado que reiniciar el scheduler **no duplica** el trabajo periódico.
+- `manage.py send_stats_digest --dry-run` verificado con datos reales.
+- 94 tests OK.
 
 ## Hallazgos ajenos a este trabajo (anotados, no tocados)
 - **`POST /api/project/invitations/<id>/accept/` devuelve 500 de forma recurrente.** 45 de los 54
@@ -369,13 +383,13 @@ los niveles inferiores.
 - [x] Cada envío escribe en `NotificationLog` con su `status`/`error`, igual que
       `ObservationEmailLog` (`markers/models.py:139`).
 
-## Fase 5 — Resumen periódico y scheduler
+## Fase 5 — Resumen periódico y scheduler ✅ (desplegada 2026-09-10)
 Supervisord mantiene vivo, **no planifica**. Y `rqworker --with-scheduler` no vale: el scheduler
 interno de RQ cubre `enqueue_at`/`enqueue_in`, no repeticiones tipo cron. Hace falta el paquete
 `rq-scheduler` y su proceso.
-- [ ] Instalar `rq-scheduler` y **verificar compatibilidad** con `rq 1.16.2` / `django-rq 2.10.2`
+- [x] Instalar `rq-scheduler` y **verificar compatibilidad** con `rq 1.16.2` / `django-rq 2.10.2`
       antes de nada. Añadir a `requirements.txt`.
-- [ ] Comando `manage.py run_scheduler`: **registra los jobs con id fijo y luego arranca el bucle.**
+- [x] Comando `manage.py run_scheduler`: **registra los jobs con id fijo y luego arranca el bucle.**
 ```python
 scheduler.cron('0 6 1,15 * *', func='stats.tasks.send_digest', args=['fortnightly'],
                id='digest-fortnightly', queue_name='citisciapi')
@@ -383,7 +397,7 @@ scheduler.cron('0 6 1,15 * *', func='stats.tasks.send_digest', args=['fortnightl
       El id fijo hace el registro idempotente (no se duplica al reiniciar) y, si alguien vacía Redis
       o se migra de máquina, un `supervisorctl restart` reconstruye el calendario. **Así el
       calendario efectivo vive en git, y Redis es solo estado.**
-- [ ] `/etc/supervisor/conf.d/citsci-scheduler.conf`, calcado de `citsci-worker.conf`:
+- [x] `/etc/supervisor/conf.d/citsci-scheduler.conf`, calcado de `citsci-worker.conf`:
 ```ini
 [program:citsci-scheduler]
 command=/home/ubuntu/citsci-api/venv/bin/python manage.py run_scheduler
@@ -394,25 +408,29 @@ autorestart=true
 stderr_logfile=/var/log/supervisor/citsci-scheduler.err.log
 stdout_logfile=/var/log/supervisor/citsci-scheduler.out.log
 ```
-- [ ] **Zona horaria: resuelto poniendo `TZ` en el propio program de supervisord**, para que el cron
-      string se interprete en hora local y el cambio de hora se gestione solo:
-      `environment=TZ="Europe/Madrid"` en `citsci-scheduler.conf`, y `use_local_timezone=True` al
-      registrar el cron. Comprobado que si no, `0 6 1,15 * *` sale a las 08:00 CEST en verano y a
-      las 07:00 CET en invierno. `TIME_ZONE` de Django sigue en UTC.
-- [ ] "Quincenal" = **días 1 y 15** (periodos de 13-16 días); ni cron ni rq-scheduler saben expresar
+- [x] **Zona horaria — OJO, el plan original estaba equivocado.** Poner `environment=TZ=...` en el
+      program de supervisord **no funciona**: Django sobrescribe el `TZ` del proceso con su
+      `TIME_ZONE` (`"UTC"`) al cargar los settings, llamando a `time.tzset()`, y lo pisa antes de
+      que rq-scheduler mire la hora local. Comprobado: con `TZ` solo en supervisord el cron sale a
+      las 08:00 **UTC**, o sea las 10:00 en Madrid.
+      La solución es re-fijarlo **después** de que Django cargue, en el `handle()` del comando
+      (`apply_scheduler_timezone()`), más `use_local_timezone=True` al registrar el cron. Entonces
+      sale a las 08:00 locales todo el año: 06:00 UTC en verano, 07:00 UTC en invierno. Hay tests
+      de las dos mitades del año. `TIME_ZONE` de Django sigue en UTC y no se toca.
+- [x] "Quincenal" = **días 1 y 15** (periodos de 13-16 días); ni cron ni rq-scheduler saben expresar
       "cada 14 días". El email debe indicar el **rango de fechas exacto** que cubre, no "últimos 15
       días".
-- [ ] `stats/tasks.py: send_digest(period)` solo orquesta; el trabajo real en
+- [x] `stats/tasks.py: send_digest(period)` solo orquesta; el trabajo real en
       `manage.py send_stats_digest --period=month|fortnightly [--dry-run]`, para poder lanzarlo a
       mano, reenviar el de un mes pasado y testearlo sin tocar Redis.
-- [ ] **La ventana la calcula el comando**, desde el último `NotificationLog` correcto hasta ahora.
+- [x] **La ventana la calcula el comando**, desde el último `NotificationLog` correcto hasta ahora.
       Nada de `now - 15 días`: si el worker estuvo parado el día 1, el envío del 15 cubre el hueco en
       vez de dejar un agujero que nadie va a notar.
-- [ ] `period_key` del resumen = `digest-2026-09` / `digest-2026-09-2`. Con el `unique_together`, ni
+- [x] `period_key` del resumen = `digest-2026-09` / `digest-2026-09-2`. Con el `unique_together`, ni
       un reintento ni un disparo manual duplican el correo.
-- [ ] Envío directo por SES desde el job (son pocos correos, segundos). Dejar `--enqueue` como
+- [x] Envío directo por SES desde el job (son pocos correos, segundos). Dejar `--enqueue` como
       opción para cuando crezca la lista de destinatarios, pero no construirlo ahora.
-- [ ] Aviso de operación a documentar: el scheduler solo **encola**; ejecuta `citsci-worker`. Si el
+- [x] Aviso de operación a documentar: el scheduler solo **encola**; ejecuta `citsci-worker`. Si el
       worker está caído a esa hora el job espera en cola y sale al volver (bien). Si se cae el
       scheduler, el disparo se pierde en silencio — de ahí `last_digest_sent_at` en el endpoint.
 
