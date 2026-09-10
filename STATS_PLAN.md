@@ -21,8 +21,9 @@ distintos. Un solo sitio donde arreglar los bugs de conteo.
 |---|---|---|
 | 2026-09-10 | Fase 0 — decisiones | **Cerrada.** Vivo = 30 días; email al crear y al publicar; `draft` reversible. Quedan 3 decisiones abiertas (ver el final). |
 | 2026-09-10 | Fase 1 — modelo y migraciones | **Desplegada en producción.** |
-| — | Fase 2 — `metrics.py` + `/api/stats/platform/` | Siguiente. |
-| — | Fases 3-7 | Sin empezar. |
+| 2026-09-10 | Fase 2 — `metrics.py` + `/api/stats/platform/` | **Desplegada en producción.** |
+| — | Fase 3 — stats por creador y por proyecto | Siguiente. |
+| — | Fases 4-7 | Sin empezar. |
 
 **Fase 1, detalle del despliegue (2026-09-10):**
 - Commits `56cfce9` (código) y `aaf12c4` (este plan), en `vjorge`.
@@ -37,6 +38,27 @@ distintos. Un solo sitio donde arreglar los bugs de conteo.
   (verificado: 38 proyectos, 1.490 observaciones, 783 usuarios) y `citsci-api-code_20260910_1240.tar.gz`.
 - **Todavía no hay ningún comportamiento nuevo**: nadie escribe en `ProjectStatusLog` ni en
   `NotificationLog`. Son tablas vacías esperando a las fases 2-4 (salvo el backfill).
+
+**Fase 2, detalle del despliegue (2026-09-10):**
+- Commit `b65af12`. Sin migraciones: no toca modelos.
+- `GET /api/stats/platform/` verificado en producción: 401 sin token, 200 con token `is_staff`,
+  400 con parámetros inválidos. Caché efectiva: 377 ms la primera llamada, 39 ms la segunda.
+- Comprobado en el payload real que no aparece ningún `anonymous_id` ni ningún email.
+- 54 tests OK. 16 queries contra los datos reales, sin N+1.
+- Números reales del primer día: 38 proyectos (6 publicados, 31 borradores), 1.492 observaciones
+  (378 en 30 días, 3 anónimas, **430 con `platform` a NULL**, previas al campo), 783 usuarios,
+  12 organizaciones, 42 membresías, **29 invitaciones pendientes que nadie caduca**.
+- Dato que valida una decisión: `active_30d` = 12 proyectos, de los que solo 5 están publicados.
+  **7 borradores están recogiendo datos activamente** por QR. Contarlos solo si están publicados
+  habría dado una foto falsa.
+
+## Hallazgos ajenos a este trabajo (anotados, no tocados)
+- **`POST /api/project/invitations/<id>/accept/` devuelve 500 de forma recurrente.** 45 de los 54
+  errores 500 del log de producción entre el 14-jul y el 8-sep-2026 son de ese endpoint, y son los
+  más recientes. Alguien que acepta una invitación a un proyecto se está comiendo un error. Merece
+  su propia sesión.
+- 430 observaciones (29%) tienen `platform` a NULL. No se esconden: salen como `unknown`.
+- 29 invitaciones de proyecto llevan en `pending` sin que nada las marque como `expired`.
 
 ## Cómo se trabaja en esto (importante, el servidor es producción)
 
@@ -194,7 +216,7 @@ class ProjectStatusLog(models.Model):
       El log vive aquí y no en una app `notifications` propia para no crear dos apps de golpe; si las
       notificaciones crecen (preferencias por usuario, más canales), se mueve entonces.
 
-## Fase 2 — `stats/metrics.py` y endpoint de plataforma
+## Fase 2 — `stats/metrics.py` y endpoint de plataforma ✅ (desplegada 2026-09-10)
 Estructura:
 ```
 stats/
@@ -205,11 +227,11 @@ stats/
   management/commands/
   tests.py
 ```
-- [ ] `metrics.py`: `project_metrics(qs)`, `observation_metrics(qs)`, `user_metrics(qs)`,
+- [x] `metrics.py`: `project_metrics(qs)`, `observation_metrics(qs)`, `user_metrics(qs)`,
       `timeseries(qs, field, granularity)`, `top_projects(qs, n)`, `top_creators(qs, n)`.
       Cada bloque en **una sola query** con `Count('id', filter=Q(...))`; nada de un `count()` por
       métrica. Los acumulados se suman en Python (con 1.500 filas no compensa una window function).
-- [ ] `GET /api/stats/platform/` — `permission_classes = [IsAdminUser]` (`is_staff`), explícito:
+- [x] `GET /api/stats/platform/` — `permission_classes = [IsAdminUser]` (`is_staff`), explícito:
       el default global es `IsAuthenticated` y no basta.
       Params: `?from=&to=&granularity=month|week`. Payload:
 ```json
@@ -231,13 +253,13 @@ stats/
   "last_digest_sent_at": "..."
 }
 ```
-- [ ] Caché Redis con `timeout=600` explícito y clave `stats_platform_{from}_{to}_{granularity}`.
+- [x] Caché Redis con `timeout=600` explícito y clave `stats_platform_{from}_{to}_{granularity}`.
       `?refresh=1` la salta (solo staff, que es quien llega aquí).
-- [ ] Throttle propio: `StatsThrottle(scope='stats')` en `stats/api/throttles.py` y
+- [x] Throttle propio: `StatsThrottle(scope='stats')` en `stats/api/throttles.py` y
       `'stats': '30/min'` en `DEFAULT_THROTTLE_RATES` (`settings.py:212`). Son las queries más caras
       de la API y `DEFAULT_THROTTLE_CLASSES` sigue vacío a propósito.
-- [ ] Borrar el `DEFAULT_PERMISSION_CLASSES` duplicado de `settings.py:192`.
-- [ ] `last_digest_sent_at` sale de `NotificationLog`: sirve de chivato para ver desde el dashboard
+- [x] Borrar el `DEFAULT_PERMISSION_CLASSES` duplicado de `settings.py:192`.
+- [x] `last_digest_sent_at` sale de `NotificationLog`: sirve de chivato para ver desde el dashboard
       que el resumen periódico sigue saliendo, sin entrar por ssh.
 
 ## Fase 3 — Estadísticas por creador y por proyecto
