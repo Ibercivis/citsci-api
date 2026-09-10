@@ -89,33 +89,56 @@ def send_platform_notification(event, period_key, context, lang='es'):
 
 
 def _deliver(log, subject, template, context, recipients, lang, text_body='', reply_to=None):
-    """Renderiza, envia y deja el resultado en el NotificationLog. Compartido por avisos y resumen."""
+    """
+    Renderiza y manda **un correo por destinatario**, no uno con todos en el To.
+
+    Un informe de proyecto puede tener 37 administradores, varios de organizaciones distintas:
+    meterlos a todos en el To seria ensenar 37 direcciones ajenas a cada uno. Y CCO tampoco:
+    con copia oculta un rebote no dice que direccion fallo, y la reputacion de envio de SES se
+    paga por rebote. Uno por persona es ademas lo que ya hace markers.tasks para las
+    notificaciones de observacion.
+    """
     log.subject = subject
     log.recipients = recipients
     try:
         with translation.override(lang):
             html_body = render_to_string(template, {'subject': subject, **context})
-        message = EmailMultiAlternatives(
-            subject=subject,
-            body=text_body or subject,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=recipients,
-            reply_to=reply_to or [],
-        )
-        message.attach_alternative(html_body, 'text/html')
-        message.send(fail_silently=False)
     except Exception as exc:
         log.status = NotificationLog.STATUS_FAILED
-        log.error = str(exc)
+        log.error = f'Error al renderizar: {exc}'
         log.save(update_fields=['status', 'error', 'subject', 'recipients'])
-        logger.error(f'Envio {log.event} {log.period_key} fallo: {exc}')
+        logger.error(f'Envio {log.event} {log.period_key} fallo al renderizar: {exc}')
         raise
 
-    log.status = NotificationLog.STATUS_SENT
-    log.sent_at = timezone.now()
-    log.error = ''
-    log.save(update_fields=['status', 'sent_at', 'error', 'subject', 'recipients'])
-    logger.info(f'Envio {log.event} {log.period_key} enviado a {recipients}')
+    enviados, fallos = [], []
+    for recipient in recipients:
+        try:
+            message = EmailMultiAlternatives(
+                subject=subject,
+                body=text_body or subject,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[recipient],
+                reply_to=reply_to or [],
+            )
+            message.attach_alternative(html_body, 'text/html')
+            message.send(fail_silently=False)
+            enviados.append(recipient)
+        except Exception as exc:
+            # Un destinatario que falla no puede impedir que los demas reciban el correo.
+            fallos.append(f'{recipient}: {exc}')
+            logger.error(f'Envio {log.event} {log.period_key} fallo para {recipient}: {exc}')
+
+    log.error = ' | '.join(fallos)
+    if enviados:
+        log.status = NotificationLog.STATUS_SENT
+        log.sent_at = timezone.now()
+        log.save(update_fields=['status', 'sent_at', 'error', 'subject', 'recipients'])
+        logger.info(f'Envio {log.event} {log.period_key} enviado a {len(enviados)} '
+                    f'destinatario(s){", con " + str(len(fallos)) + " fallo(s)" if fallos else ""}')
+    else:
+        log.status = NotificationLog.STATUS_FAILED
+        log.save(update_fields=['status', 'error', 'subject', 'recipients'])
+        raise RuntimeError(f'Ningun destinatario recibio {log.event} {log.period_key}: {log.error}')
 
 
 def send_digest(period='fortnightly', lang='es'):

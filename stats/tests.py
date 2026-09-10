@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.core import mail
+from django.core.mail import EmailMultiAlternatives
 from django.core.management import call_command
 from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
@@ -434,9 +435,10 @@ class SendPlatformNotificationTests(TestCase):
 
     def test_sends_the_email_and_records_it(self):
         send_platform_notification('project-published', 'project-status-1', self._context())
-        self.assertEqual(len(mail.outbox), 1)
+        # Un correo por destinatario, cada uno con su dirección y sin ver la del otro.
+        self.assertEqual(len(mail.outbox), 2)
         self.assertIn('Proyecto publicado: Proyecto', mail.outbox[0].subject)
-        self.assertEqual(sorted(mail.outbox[0].to), ['dos@example.com', 'uno@example.com'])
+        self.assertEqual(sorted(m.to[0] for m in mail.outbox), ['dos@example.com', 'uno@example.com'])
         log = NotificationLog.objects.get(event='project-published', period_key='project-status-1')
         self.assertEqual(log.status, NotificationLog.STATUS_SENT)
         self.assertIsNotNone(log.sent_at)
@@ -445,13 +447,13 @@ class SendPlatformNotificationTests(TestCase):
         """Es el motivo de existir de NotificationLog: rq reintenta y el correo no puede duplicarse."""
         send_platform_notification('project-published', 'project-status-1', self._context())
         send_platform_notification('project-published', 'project-status-1', self._context())
-        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(len(mail.outbox), 2)   # 2 destinatarios, una sola tanda
         self.assertEqual(NotificationLog.objects.count(), 1)
 
     def test_a_different_transition_does_send(self):
         send_platform_notification('project-published', 'project-status-1', self._context())
         send_platform_notification('project-republished', 'project-status-9', self._context())
-        self.assertEqual(len(mail.outbox), 2)
+        self.assertEqual(len(mail.outbox), 4)   # 2 avisos x 2 destinatarios
 
     @override_settings(PLATFORM_NOTIFICATION_EMAILS=[])
     def test_without_recipients_it_records_the_failure_instead_of_crashing(self):
@@ -810,8 +812,8 @@ class ProjectDigestTests(TestCase):
 
     def test_the_report_goes_to_creator_and_administrators(self):
         send_project_digest(self.activo.id, 'month')
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(sorted(mail.outbox[0].to), ['a@example.com', 'c@example.com'])
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertEqual(sorted(m.to[0] for m in mail.outbox), ['a@example.com', 'c@example.com'])
         self.assertIn('Con actividad', mail.outbox[0].subject)
 
     def test_new_and_recurring_contributors(self):
@@ -865,10 +867,10 @@ class ProjectDigestTests(TestCase):
             status=NotificationLog.STATUS_SENT)
         self.assertEqual(project_digest_kind(self.parado, 'month', now=self.now), 'inactive')
 
-    def test_sending_twice_for_the_same_period_sends_one_email(self):
+    def test_sending_twice_for_the_same_period_sends_one_round(self):
         send_project_digest(self.activo.id, 'month')
         send_project_digest(self.activo.id, 'month')
-        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(len(mail.outbox), 2)   # los 2 destinatarios, una sola vez
 
     def test_a_project_without_any_email_records_the_failure(self):
         huerfano = _make_project(User.objects.create_user(username='sinmail'), 'Sin correo')
@@ -877,3 +879,69 @@ class ProjectDigestTests(TestCase):
         self.assertEqual(len(mail.outbox), 0)
         log = NotificationLog.objects.get(period_key__startswith=f'project-{huerfano.id}-digest-')
         self.assertEqual(log.status, NotificationLog.STATUS_FAILED)
+
+
+@override_settings(
+    CACHES=TEST_CACHES,
+    EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+    PLATFORM_NOTIFICATION_EMAILS=['uno@example.com', 'dos@example.com', 'tres@example.com'],
+)
+class RecipientPrivacyTests(TestCase):
+    """
+    Nadie puede ver la dirección de nadie. Un informe de proyecto puede tener 37 administradores de
+    organizaciones distintas; meterlos a todos en el To sería enseñar 37 direcciones ajenas a cada
+    uno. Y con CCO un rebote no diría qué dirección falló, que es justo lo que necesita SES.
+    """
+
+    def setUp(self):
+        mail.outbox = []
+
+    def test_one_message_per_recipient(self):
+        send_digest('month')
+        self.assertEqual(len(mail.outbox), 3)
+        for message in mail.outbox:
+            self.assertEqual(len(message.to), 1)
+
+    def test_nobody_sees_anybody_elses_address(self):
+        send_digest('month')
+        for message in mail.outbox:
+            otras = {'uno@example.com', 'dos@example.com', 'tres@example.com'} - set(message.to)
+            cuerpo = message.body + message.alternatives[0][0] + str(message.to) + str(message.cc) + str(message.bcc)
+            for direccion in otras:
+                self.assertNotIn(direccion, cuerpo)
+
+    def test_no_bcc_is_used(self):
+        send_digest('month')
+        for message in mail.outbox:
+            self.assertEqual(message.bcc, [])
+            self.assertEqual(message.cc, [])
+
+    def test_a_project_report_also_goes_one_by_one(self):
+        creator = User.objects.create_user(username='c1', email='c1@example.com')
+        admin = User.objects.create_user(username='a1', email='a1@example.com')
+        project = _make_project(creator, 'Con dos admins')
+        project.administrators.add(admin)
+        _make_observation(project, created_at=timezone.now() - timedelta(days=1), creator=creator)
+        mail.outbox = []
+        send_project_digest(project.id, 'month')
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertEqual(sorted(m.to[0] for m in mail.outbox), ['a1@example.com', 'c1@example.com'])
+        for message in mail.outbox:
+            self.assertEqual(len(message.to), 1)
+
+    def test_one_bad_address_does_not_block_the_others(self):
+        """Y el log dice cuál falló, que es para lo que sirve."""
+        from unittest.mock import patch
+        original = EmailMultiAlternatives.send
+
+        def falla_para_dos(self, *args, **kwargs):
+            if self.to == ['dos@example.com']:
+                raise RuntimeError('dirección rechazada')
+            return original(self, *args, **kwargs)
+
+        with patch.object(EmailMultiAlternatives, 'send', falla_para_dos):
+            send_digest('month')
+        self.assertEqual(len(mail.outbox), 2)
+        log = NotificationLog.objects.get(event='digest')
+        self.assertEqual(log.status, NotificationLog.STATUS_SENT)
+        self.assertIn('dos@example.com', log.error)
