@@ -26,6 +26,22 @@ Hoy tienen `is_staff`: `fran`, `jbarba`, `dlisbona`, `Germán`, `fran67`, `fran3
 y `Germán`: **tienen también una cuenta personal de gmail en la plataforma que NO es staff**. Si
 entran con esa, el panel les dará 403.
 
+### Cómo sabe el front si eres staff
+
+```http
+GET /api/users/authentication/user/     →  { "pk": 1, "email": "...", "is_staff": true, … }
+```
+
+Es el mismo serializer que devuelve el login, así que el dato ya lo tenéis en la respuesta de
+autenticación: no hace falta una llamada extra. Con eso se enseña u oculta el enlace al panel de
+plataforma **sin tener que pedir `/stats/platform/` y mirar si da 403**.
+
+`is_staff` es de solo lectura y **solo aparece en tu propio usuario**. No está en
+`/api/users/`, `/api/users/<pk>/`, `/api/users/list/` ni en `/api/users/profile/`, y no es un
+descuido: saber quién administra la plataforma es elegir a quién atacar. Si necesitáis pintar
+"administrador" junto a otro usuario en alguna pantalla, decidlo y lo vemos, pero no vale con
+exponer el campo.
+
 Errores:
 
 | Código | Cuándo |

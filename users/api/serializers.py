@@ -201,7 +201,12 @@ class UserDetailsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['pk', 'email', 'terms_accepted_at', 'terms_version', 'privacy_accepted_at', 'privacy_version']
+        # is_staff va SOLO aqui, que es el "quien soy yo" (dj_rest_auth: la respuesta del login y
+        # /api/users/authentication/user/). NO se pone en ProfileSerializer: ese va anidado en
+        # UserSerializer, que sirve /api/users/, /api/users/<pk>/ y /api/users/list/, y ahi seria
+        # publicar a cualquier autenticado la lista de quien administra la plataforma.
+        fields = ['pk', 'email', 'is_staff', 'terms_accepted_at', 'terms_version',
+                  'privacy_accepted_at', 'privacy_version']
         read_only_fields = fields
 
 

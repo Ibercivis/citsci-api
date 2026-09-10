@@ -1196,3 +1196,46 @@ class CacheVersionTests(APITestCase):
         claves = [k for k in cache._cache.keys() if 'stats_platform' in str(k)]
         self.assertTrue(claves, 'no se ha cacheado nada')
         self.assertTrue(any(f'_v{PAYLOAD_VERSION}_' in str(k) for k in claves), claves)
+
+
+class StaffFlagExposureTests(APITestCase):
+    """
+    El front necesita saber si eres staff para enseñar u ocultar el panel de plataforma. Pero solo
+    de TI: `is_staff` en el serializer de perfil se filtraría por /api/users/ y /api/users/<pk>/,
+    o sea publicaría a cualquier autenticado quién administra la plataforma.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.staff = User.objects.create_user(username='jefa', email='j@example.com', is_staff=True)
+        cls.normal = User.objects.create_user(username='rasa', email='r@example.com')
+        cls.staff_token = Token.objects.create(user=cls.staff)
+        cls.normal_token = Token.objects.create(user=cls.normal)
+
+    def _as(self, token):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+
+    def test_the_who_am_i_endpoint_says_whether_you_are_staff(self):
+        for token, esperado in ((self.staff_token, True), (self.normal_token, False)):
+            self._as(token)
+            response = self.client.get('/api/users/authentication/user/')
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data['is_staff'], esperado)
+
+    def test_is_staff_cannot_be_written(self):
+        self._as(self.normal_token)
+        self.client.patch('/api/users/authentication/user/', {'is_staff': True}, format='json')
+        self.normal.refresh_from_db()
+        self.assertFalse(self.normal.is_staff)
+
+    def test_the_user_list_does_not_reveal_who_is_staff(self):
+        """Saber quién administra la plataforma es elegir a quién atacar."""
+        self._as(self.normal_token)
+        cuerpo = self.client.get('/api/users/list/').content.decode()
+        self.assertNotIn('is_staff', cuerpo)
+        cuerpo = self.client.get(f'/api/users/{self.staff.id}/').content.decode()
+        self.assertNotIn('is_staff', cuerpo)
+
+    def test_the_profile_endpoint_does_not_leak_it_either(self):
+        self._as(self.staff_token)
+        self.assertNotIn('is_staff', self.client.get('/api/users/profile/').content.decode())
