@@ -1,5 +1,7 @@
 from rest_framework import serializers, generics
 from django.contrib.auth.models import User
+from django.conf import settings
+from field_forms.translation import get_language_from_request
 from users.models import Profile
 from organizations.models import Organization
 from project.models import Project, ProjectCover
@@ -100,7 +102,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Profile
-        fields = ['username', 'email', 'first_name', 'last_name', 'biography', 'visibility', 'country', 'cover', 'created_organizations', 'admin_organizations', 'member_organizations', 'participated_projects', 'created_projects', 'liked_projects']
+        fields = ['username', 'email', 'first_name', 'last_name', 'biography', 'visibility', 'country', 'language', 'cover', 'created_organizations', 'admin_organizations', 'member_organizations', 'participated_projects', 'created_projects', 'liked_projects']
 
     def get_admin_organizations(self, obj):
         organizations = Organization.objects.filter(administrators__in=[obj.user]).prefetch_related('type')
@@ -176,6 +178,12 @@ class CustomRegisterSerializer(DefaultRegisterSerializer):
         privacy_version = self.cleaned_data.get('privacy_version', '')
         now = timezone.now()
         profile = user.profile
+        # El idioma se siembra aqui desde el Accept-Language del alta. Sin esto el campo nace vacio
+        # para todo el mundo y no sirve de nada: en los correos programados no hay ninguna peticion
+        # de la que sacarlo despues.
+        idioma = get_language_from_request(request)
+        if idioma in dict(settings.LANGUAGES):
+            profile.language = idioma
         if terms_version:
             profile.terms_version = terms_version
             profile.terms_accepted_at = now

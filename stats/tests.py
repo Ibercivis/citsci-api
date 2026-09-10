@@ -945,3 +945,76 @@ class RecipientPrivacyTests(TestCase):
         log = NotificationLog.objects.get(event='digest')
         self.assertEqual(log.status, NotificationLog.STATUS_SENT)
         self.assertIn('dos@example.com', log.error)
+
+
+@override_settings(
+    CACHES=TEST_CACHES,
+    EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+    PLATFORM_NOTIFICATION_EMAILS=['es@example.com', 'en@example.com', 'sinidioma@example.com'],
+)
+class RecipientLanguageTests(APITestCase):
+    """
+    Cada uno recibe el correo en SU idioma, no en el de quien disparó la acción ni en uno fijo.
+    Esto solo es posible desde que se manda un correo por persona.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        for username, email, idioma in (('espanola', 'es@example.com', 'es'),
+                                        ('british', 'en@example.com', 'en'),
+                                        ('nadie', 'sinidioma@example.com', '')):
+            user = User.objects.create_user(username=username, email=email)
+            user.profile.language = idioma
+            user.profile.save()
+
+    def setUp(self):
+        mail.outbox = []
+
+    def test_the_language_field_starts_empty(self):
+        user = User.objects.create_user(username='nueva', email='n@example.com')
+        self.assertEqual(user.profile.language, '')
+
+    def test_grouping_uses_the_profile_and_falls_back(self):
+        from stats.tasks import _group_by_language
+        grupos = _group_by_language(
+            ['es@example.com', 'en@example.com', 'sinidioma@example.com'], 'es')
+        self.assertEqual(sorted(grupos['es']), ['es@example.com', 'sinidioma@example.com'])
+        self.assertEqual(grupos['en'], ['en@example.com'])
+
+    def test_an_unknown_language_falls_back_instead_of_breaking(self):
+        from stats.tasks import _group_by_language
+        user = User.objects.get(username='british')
+        user.profile.language = 'kl'     # klingon, no está en LANGUAGES
+        user.profile.save()
+        grupos = _group_by_language(['en@example.com'], 'es')
+        self.assertEqual(grupos, {'es': ['en@example.com']})
+
+    def test_each_recipient_gets_their_own_language(self):
+        send_digest('month')
+        self.assertEqual(len(mail.outbox), 3)
+        por_destinatario = {m.to[0]: m.alternatives[0][0] for m in mail.outbox}
+        self.assertIn('Últimos', por_destinatario['es@example.com'])
+        self.assertIn('Last', por_destinatario['en@example.com'])
+        # quien no lo tiene puesto se queda con el respaldo
+        self.assertIn('Últimos', por_destinatario['sinidioma@example.com'])
+
+    def test_registration_seeds_the_language_from_accept_language(self):
+        """Sin esto el campo nace vacío para todos y no sirve de nada."""
+        response = self.client.post(
+            '/api/users/registration/',
+            {'email': 'nuevo@example.com', 'password1': 'ContraseñaLarga123',
+             'password2': 'ContraseñaLarga123'},
+            format='json',
+            HTTP_ACCEPT_LANGUAGE='en-GB,en;q=0.9',
+        )
+        self.assertIn(response.status_code, (201, 204))
+        self.assertEqual(User.objects.get(email='nuevo@example.com').profile.language, 'en')
+
+    def test_the_profile_endpoint_lets_the_user_change_it(self):
+        user = User.objects.get(username='espanola')
+        token = Token.objects.create(user=user)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        response = self.client.patch('/api/users/profile/', {'language': 'en'}, format='json')
+        self.assertEqual(response.status_code, 200)
+        user.profile.refresh_from_db()
+        self.assertEqual(user.profile.language, 'en')

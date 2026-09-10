@@ -15,6 +15,8 @@ from datetime import timedelta
 
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.utils.dates import MONTHS_3
+from django.utils.translation import gettext_lazy as _
 
 from markers.models import Observation
 from project.models import Project
@@ -22,19 +24,20 @@ from stats import metrics
 from stats.models import NotificationLog
 
 PERIODS = {
-    'fortnightly': ('quincenal', 15),
-    'month': ('mensual', 30),
+    'fortnightly': (_('quincenal'), 15),
+    'month': (_('mensual'), 30),
 }
 DIGEST_EVENT = 'digest'
 CHART_MONTHS = 6
 CHART_HEIGHT = 80
-MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun',
-         'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+# MONTHS_3 son cadenas perezosas que Django ya trae traducidas: se resuelven al renderizar,
+# que es lo que hace falta aqui porque el contexto se construye una vez y se pinta en varios
+# idiomas distintos, uno por grupo de destinatarios.
 
 
 def digest_window(period, now=None):
     now = now or timezone.now()
-    _, nominal_days = PERIODS.get(period, PERIODS['fortnightly'])
+    _label, nominal_days = PERIODS.get(period, PERIODS['fortnightly'])
     last = (
         NotificationLog.objects
         .filter(event=DIGEST_EVENT, status=NotificationLog.STATUS_SENT, sent_at__isnull=False)
@@ -82,14 +85,14 @@ def _bars(series):
     top = max((point['count'] for point in series), default=0)
     bars = []
     for point in series:
-        year, month, _ = point['period'].split('-')
+        year, month, _dia = point['period'].split('-')
         if top:
             # minimo 2px cuando hay algo, para que un mes flojo no parezca vacio
             height = max(2, round(point['count'] * CHART_HEIGHT / top))
         else:
             height = 1
         bars.append({
-            'label': MESES[int(month) - 1],
+            'label': MONTHS_3[int(month)],
             'year': year,
             'count': point['count'],
             'height': height if point['count'] else 1,
@@ -99,7 +102,7 @@ def _bars(series):
 
 def build_digest_context(period, now=None, lang='es'):
     since, until = digest_window(period, now=now)
-    label, _ = PERIODS.get(period, PERIODS['fortnightly'])
+    label = PERIODS.get(period, PERIODS['fortnightly'])[0]
 
     projects = Project.objects.all()
     observations = Observation.objects.all()
@@ -113,11 +116,13 @@ def build_digest_context(period, now=None, lang='es'):
     # acumulado de dos anos con contribuidores de 15 dias se lee mal.
     period_platform = metrics.observation_metrics(period_observations, now=until)['by_platform']
 
+    # Etiquetas perezosas a proposito: el contexto se construye una vez y se renderiza en varios
+    # idiomas, uno por grupo de destinatarios. Si se resolvieran aqui, todos lo verian igual.
     headline = [
-        _headline('observaciones nuevas', observations, 'created_at', since, until),
-        _headline('usuarios nuevos', users, 'date_joined', since, until),
-        _headline('proyectos nuevos', projects, 'created_at', since, until),
-        _headline('proyectos publicados', projects.filter(published_at__isnull=False),
+        _headline(_('observaciones nuevas'), observations, 'created_at', since, until),
+        _headline(_('usuarios nuevos'), users, 'date_joined', since, until),
+        _headline(_('proyectos nuevos'), projects, 'created_at', since, until),
+        _headline(_('proyectos publicados'), projects.filter(published_at__isnull=False),
                   'published_at', since, until),
     ]
 
@@ -125,16 +130,16 @@ def build_digest_context(period, now=None, lang='es'):
     # Con `until - 30*6 dias` salian 7 barras y la primera era un mes a medias, o sea una caida
     # falsa al principio de la serie.
     first_month = until.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    for _ in range(CHART_MONTHS - 1):
+    for _mes in range(CHART_MONTHS - 1):
         first_month = (first_month - timedelta(days=1)).replace(day=1)
     chart_since = first_month
     charts = []
     for title, queryset, field in (
-        ('Observaciones', observations, 'created_at'),
-        ('Usuarios nuevos', users, 'date_joined'),
-        ('Proyectos creados', projects, 'created_at'),
+        (_('Observaciones'), observations, 'created_at'),
+        (_('Usuarios nuevos'), users, 'date_joined'),
+        (_('Proyectos creados'), projects, 'created_at'),
     ):
-        series, _ = metrics.timeseries(queryset, field, chart_since, until, 'month')
+        series, _acum = metrics.timeseries(queryset, field, chart_since, until, 'month')
         charts.append({'title': title, 'bars': _bars(series)})
 
     return {

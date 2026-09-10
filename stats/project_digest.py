@@ -16,6 +16,7 @@ from datetime import timedelta
 
 from django.db.models import Min
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from markers.models import Observation
 from stats import metrics
@@ -36,7 +37,7 @@ MAX_CONSECUTIVE_INACTIVE = 3
 
 def project_window(period, now=None):
     now = now or timezone.now()
-    _, nominal_days = PERIODS.get(period, PERIODS['month'])
+    _label, nominal_days = PERIODS.get(period, PERIODS['month'])
     return now - timedelta(days=nominal_days), now
 
 
@@ -116,7 +117,7 @@ def _contributors_new_vs_recurring(project, since, until):
 
 def build_project_context(project, period='month', now=None, lang='es'):
     since, until = project_window(period, now=now)
-    label, _ = PERIODS.get(period, PERIODS['month'])
+    label = PERIODS.get(period, PERIODS['month'])[0]
 
     observations = Observation.objects.filter(field_form__project=project)
     del_periodo = observations.filter(created_at__gte=since, created_at__lt=until)
@@ -127,7 +128,7 @@ def build_project_context(project, period='month', now=None, lang='es'):
     delta_pct = round((total - previo) * 100 / previo) if previo else None
 
     chart_from = until.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    for _ in range(CHART_MONTHS - 1):
+    for _mes in range(CHART_MONTHS - 1):
         chart_from = (chart_from - timedelta(days=1)).replace(day=1)
     serie, _acumulada = metrics.timeseries(observations, 'created_at', chart_from, until, 'month')
 

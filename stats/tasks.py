@@ -97,36 +97,42 @@ def _deliver(log, subject, template, context, recipients, lang, text_body='', re
     con copia oculta un rebote no dice que direccion fallo, y la reputacion de envio de SES se
     paga por rebote. Uno por persona es ademas lo que ya hace markers.tasks para las
     notificaciones de observacion.
+
+    Cada uno lo recibe **en su idioma** (Profile.language), agrupando para renderizar una vez por
+    idioma y no una por persona. `lang` pasa a ser solo el respaldo de quien no lo tenga puesto.
+
+    Limitacion conocida: el asunto y el texto plano se construyen una sola vez, con el idioma de
+    respaldo. Lo que cambia por destinatario es el HTML, que es el que se lee. Los nombres de
+    proyecto ya vienen resueltos en el contexto.
     """
     log.subject = subject
     log.recipients = recipients
-    try:
-        with translation.override(lang):
-            html_body = render_to_string(template, {'subject': subject, **context})
-    except Exception as exc:
-        log.status = NotificationLog.STATUS_FAILED
-        log.error = f'Error al renderizar: {exc}'
-        log.save(update_fields=['status', 'error', 'subject', 'recipients'])
-        logger.error(f'Envio {log.event} {log.period_key} fallo al renderizar: {exc}')
-        raise
 
     enviados, fallos = [], []
-    for recipient in recipients:
+    for idioma, grupo in _group_by_language(recipients, lang).items():
         try:
-            message = EmailMultiAlternatives(
-                subject=subject,
-                body=text_body or subject,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[recipient],
-                reply_to=reply_to or [],
-            )
-            message.attach_alternative(html_body, 'text/html')
-            message.send(fail_silently=False)
-            enviados.append(recipient)
+            with translation.override(idioma):
+                cuerpo_html = render_to_string(template, {'subject': subject, **context})
         except Exception as exc:
-            # Un destinatario que falla no puede impedir que los demas reciban el correo.
-            fallos.append(f'{recipient}: {exc}')
-            logger.error(f'Envio {log.event} {log.period_key} fallo para {recipient}: {exc}')
+            fallos.append(f'{grupo}: error al renderizar en {idioma}: {exc}')
+            logger.error(f'Envio {log.event} {log.period_key} fallo al renderizar en {idioma}: {exc}')
+            continue
+        for recipient in grupo:
+            try:
+                message = EmailMultiAlternatives(
+                    subject=subject,
+                    body=text_body or subject,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    to=[recipient],
+                    reply_to=reply_to or [],
+                )
+                message.attach_alternative(cuerpo_html, 'text/html')
+                message.send(fail_silently=False)
+                enviados.append(recipient)
+            except Exception as exc:
+                # Un destinatario que falla no puede impedir que los demas reciban el correo.
+                fallos.append(f'{recipient}: {exc}')
+                logger.error(f'Envio {log.event} {log.period_key} fallo para {recipient}: {exc}')
 
     log.error = ' | '.join(fallos)
     if enviados:
@@ -343,3 +349,29 @@ def _project_text_body(kind, context):
         context['url'],
     ]
     return '\n'.join(lines)
+
+
+def _group_by_language(recipients, fallback):
+    """
+    {idioma: [direcciones]} segun Profile.language, con `fallback` para quien no lo tenga.
+
+    Se busca por email porque los destinatarios del resumen de plataforma son cadenas de
+    configuracion, no usuarios; los de un informe de proyecto si son usuarios y siempre casan.
+    """
+    from users.models import Profile
+
+    fallback = fallback or settings.LANGUAGE_CODE
+    idiomas = dict(
+        Profile.objects
+        .filter(user__email__in=recipients)
+        .exclude(language='')
+        .values_list('user__email', 'language')
+    )
+    validos = dict(settings.LANGUAGES)
+    grupos = {}
+    for recipient in recipients:
+        idioma = idiomas.get(recipient, fallback)
+        if idioma not in validos:
+            idioma = fallback
+        grupos.setdefault(idioma, []).append(recipient)
+    return grupos

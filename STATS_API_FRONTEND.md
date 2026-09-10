@@ -205,6 +205,44 @@ asumáis que siempre será así.
 
 ---
 
+## Idioma del usuario
+
+Los correos automáticos (avisos de proyecto, resumen mensual, informe por proyecto) se mandan **en
+el idioma de cada destinatario**, no en uno fijo. Ese idioma sale de `Profile.language`.
+
+**Leerlo y cambiarlo** con el endpoint de perfil que ya existía:
+
+```http
+GET   /api/users/profile/
+PATCH /api/users/profile/     {"language": "en"}
+```
+
+Devuelve 200 con el perfil actualizado. Valores admitidos: `es`, `en`, `fr`, `pt`, `it`, `de`, y
+cadena vacía `""` para "sin preferencia". Cualquier otro valor da 400.
+
+Detalles que conviene conocer:
+
+- **El campo se siembra solo en el registro** a partir de la cabecera `Accept-Language` del alta.
+  Si el navegador manda `en-GB,en;q=0.9`, el perfil nace con `en`. Por eso conviene que el registro
+  mande esa cabecera.
+- **Vacío no es un error**: significa "sin preferencia" y el correo cae al idioma por defecto de la
+  plataforma (`es`). Los 783 usuarios anteriores a 2026-09-10 lo tienen vacío salvo los que se han
+  rellenado a mano.
+- **Un selector de idioma en los ajustes de la cuenta es lo suyo.** Hoy el único modo de cambiarlo
+  es este PATCH; sin interfaz, el usuario depende de lo que dijera su navegador el día que se
+  registró.
+- El idioma de la interfaz web lo seguís gestionando vosotros; este campo es lo que el backend usa
+  para los correos. Si los mantenéis en sincronía, mejor: cambiar el idioma de la web debería hacer
+  este PATCH.
+
+**Estado real de las traducciones** (2026-09-10): el catálogo inglés está completo para los correos
+(149 cadenas). Los de **francés, portugués, italiano y alemán están a medias** (36-40 cadenas de
+149), así que marcar a alguien como `fr` hoy le daría un correo mezclado. **No existe catálogo
+neerlandés** pese a haber 11 destinatarios de Leiden en los proyectos BuurtKennis; a ellos se les ha
+puesto `en`.
+
+---
+
 ## Sugerencia de panel
 
 Con lo que hay, un panel de staff que se lea de un vistazo sería:
