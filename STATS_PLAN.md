@@ -22,8 +22,9 @@ distintos. Un solo sitio donde arreglar los bugs de conteo.
 | 2026-09-10 | Fase 0 — decisiones | **Cerrada.** Vivo = 30 días; email al crear y al publicar; `draft` reversible. Quedan 3 decisiones abiertas (ver el final). |
 | 2026-09-10 | Fase 1 — modelo y migraciones | **Desplegada en producción.** |
 | 2026-09-10 | Fase 2 — `metrics.py` + `/api/stats/platform/` | **Desplegada en producción.** |
-| — | Fase 3 — stats por creador y por proyecto | Siguiente. |
-| — | Fases 4-7 | Sin empezar. |
+| 2026-09-10 | Fase 3 — stats por creador y por proyecto | **Desplegada en producción.** |
+| — | Fase 4 — notificaciones por evento | Siguiente. |
+| — | Fases 5-7 | Sin empezar. |
 
 **Fase 1, detalle del despliegue (2026-09-10):**
 - Commits `56cfce9` (código) y `aaf12c4` (este plan), en `vjorge`.
@@ -51,6 +52,26 @@ distintos. Un solo sitio donde arreglar los bugs de conteo.
 - Dato que valida una decisión: `active_30d` = 12 proyectos, de los que solo 5 están publicados.
   **7 borradores están recogiendo datos activamente** por QR. Contarlos solo si están publicados
   habría dado una foto falsa.
+
+**Fase 3, detalle del despliegue (2026-09-10):**
+- Commit `6c0f329`. Sin migraciones.
+- Endpoints: `GET /api/stats/me/` y `GET /api/project/<pk>/stats/`.
+- Verificado en producción con un proyecto temporal en borrador (invisible en los listados) que se
+  borró después, dejando la base exactamente como estaba (38 proyectos, 1.492 observaciones,
+  783 usuarios, 45 filas de log):
+
+  | Prueba | Resultado |
+  |---|---|
+  | `/project/<pk>/stats/` sin token | 401 |
+  | idem, usuario ajeno | 403 |
+  | idem, creador | 200 |
+  | creador pidiendo un proyecto ajeno | 403 |
+  | `/stats/me/` sin token | 401 |
+  | `/stats/me/`, usuario sin proyectos | 200, total 0 |
+  | `top` en cualquiera de los dos | ausente |
+  | `anonymous_id` en la respuesta | ausente |
+
+- 67 tests OK. 0 errores 5xx en el día.
 
 ## Hallazgos ajenos a este trabajo (anotados, no tocados)
 - **`POST /api/project/invitations/<id>/accept/` devuelve 500 de forma recurrente.** 45 de los 54
@@ -262,7 +283,7 @@ stats/
 - [x] `last_digest_sent_at` sale de `NotificationLog`: sirve de chivato para ver desde el dashboard
       que el resumen periódico sigue saliendo, sin entrar por ssh.
 
-## Fase 3 — Estadísticas por creador y por proyecto
+## Fase 3 — Estadísticas por creador y por proyecto ✅ (desplegada 2026-09-10)
 
 **Tres niveles de visibilidad.** Importante: el nivel público **ya existe hoy**, no lo estrenamos
 aquí. `ProjectListSerializer` (`project/api/serializers.py:440`) expone `contributions`,
@@ -280,17 +301,17 @@ El nivel de plataforma es el realmente sensible: comparar proyectos ajenos entre
 que hoy no tiene nadie salvo por el admin de Django. Los `top` de la Fase 2 **no** se filtran hacia
 los niveles inferiores.
 
-- [ ] `GET /api/stats/me/` — `IsAuthenticated`. Nivel de proyecto sobre
+- [x] `GET /api/stats/me/` — `IsAuthenticated`. Nivel de proyecto sobre
       `Project.objects.filter(Q(creator=u) | Q(administrators=u)).distinct()`, con desglose por
       proyecto. Reutiliza `metrics.py` tal cual.
-- [ ] `GET /api/project/<pk>/stats/` — nivel de proyecto. Usar el helper que ya existe,
+- [x] `GET /api/project/<pk>/stats/` — nivel de proyecto. Usar el helper que ya existe,
       `_is_project_admin(user, project)` (`markers/api/views.py:39`): devuelve `True` para creador y
       para `administrators`, que es exactamente el criterio que queremos. No escribir una tercera
       variante de esta comprobación.
-- [ ] **Miembros del proyecto** (`ProjectMembership`): **no** acceden al nivel de proyecto.
+- [x] **Miembros del proyecto** (`ProjectMembership`): **no** acceden al nivel de proyecto.
       Ya tienen el nivel público y sus propias observaciones vía `/observations/my/`. (Decidido en
       Fase 0 si se cambia de opinión.)
-- [ ] **Privacidad, no negociable:** `anonymous_id` no se expone nunca (regla ya establecida en el
+- [x] **Privacidad, no negociable:** `anonymous_id` no se expone nunca (regla ya establecida en el
       plan del QR: solo truncado a 8 caracteres en la descarga). Nada de listar emails de
       contribuidores. Respetar `fuzzy` y `private_data` si alguna métrica llega a tocar geometría.
 
