@@ -57,6 +57,11 @@ class Project(models.Model):
     anonymous_contribution = models.BooleanField(default=False)
     anonymous_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     last_observation = models.DateTimeField(null=True, blank=True, default=None)
+    # Primera publicacion (draft True->False). Inmutable: no se sobrescribe en publicaciones
+    # posteriores ni se pone a None al despublicar, porque `draft` es reversible y la serie
+    # "proyectos publicados por mes" tiene que significar primeras publicaciones.
+    # El historico de idas y venidas esta en ProjectStatusLog.
+    published_at = models.DateTimeField(null=True, blank=True, db_index=True, default=None)
 
     PLATFORM_ALL = 'all'
     PLATFORM_MOBILE = 'mobile'
@@ -106,6 +111,49 @@ class Project(models.Model):
         except Exception:
             # Si no hay formulario asociado, devolvemos 0.
             return 0
+
+class ProjectStatusLog(models.Model):
+    """
+    Historico de cambios de estado de un proyecto. `draft` y `ended` son reversibles, asi que
+    el estado actual no basta para responder "cuantos proyectos estaban publicados en marzo".
+
+    Cada fila es ademas la clave de idempotencia del email que la anuncia
+    (`period_key = f'project-status-{log.id}'`): un reintento de rq no duplica el correo, y una
+    segunda publicacion si manda el suyo porque es otra fila.
+    """
+    EVENT_CREATED = 'created'
+    EVENT_PUBLISHED = 'published'
+    EVENT_UNPUBLISHED = 'unpublished'
+    EVENT_ENDED = 'ended'
+    EVENT_REOPENED = 'reopened'
+    EVENT_CHOICES = [
+        (EVENT_CREATED, 'Created'),
+        (EVENT_PUBLISHED, 'Published'),
+        (EVENT_UNPUBLISHED, 'Unpublished'),
+        (EVENT_ENDED, 'Ended'),
+        (EVENT_REOPENED, 'Reopened'),
+    ]
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='status_log')
+    event = models.CharField(max_length=16, choices=EVENT_CHOICES)
+    # default=timezone.now y no auto_now_add: el backfill necesita escribir fechas historicas,
+    # y auto_now_add las pisaria. Mismo patron que Project.created_at.
+    at = models.DateTimeField(default=timezone.now, db_index=True)
+    by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                           related_name='project_status_changes')
+    # True en las filas que crea la migracion de backfill: no sabemos cuando se publicaron
+    # realmente los proyectos anteriores a este cambio, asi que se estiman con created_at.
+    estimated = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-at', '-id']
+        indexes = [
+            models.Index(fields=['event', 'at']),
+        ]
+
+    def __str__(self):
+        return f"{self.project_id} {self.event} @ {self.at:%Y-%m-%d %H:%M}"
+
 
 # Modelo para asociar imágenes a un proyecto (Covers para el frontend)       
 class ProjectCover(models.Model):

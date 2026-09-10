@@ -78,6 +78,7 @@ INSTALLED_APPS = [
     "organizations",
     "field_forms",
     "markers",
+    "stats",
     "users.apps.UsersConfig",
 
 ]
