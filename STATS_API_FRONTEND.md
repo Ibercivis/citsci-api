@@ -52,6 +52,11 @@ Los tres endpoints aceptan lo mismo:
 La respuesta se cachea **10 minutos**. El campo `cached` dice si viene de caché; `?refresh=1` la
 salta. Para un panel normal no hace falta: si el usuario pulsa "actualizar", ahí sí.
 
+La clave de caché lleva la versión de la forma del payload, así que cuando el backend añada o quite
+campos **no os llegarán respuestas de la forma antigua** durante los 10 minutos siguientes al
+despliegue. Si alguna vez veis un payload al que le falta un campo que este documento promete,
+probad con `?refresh=1` y avisad.
+
 `Accept-Language` decide el idioma de los nombres de proyecto (`es`, `en`, …).
 
 ---

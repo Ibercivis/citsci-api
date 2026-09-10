@@ -22,6 +22,11 @@ from stats.api.throttles import StatsThrottle
 from stats.models import NotificationLog
 
 CACHE_TIMEOUT = 600  # 10 min. El TIMEOUT global de CACHES es de 24h, hay que pasarlo explicito.
+# Version de la FORMA del payload. Va en la clave de cache: sin esto, tras desplegar un cambio de
+# payload la API sigue sirviendo la forma antigua hasta 10 minutos, y el front recibe respuestas
+# incoherentes segun le toque cache o no. Paso el 2026-09-10 al anadir `comparison`.
+# SUBIRLA cada vez que se anadan o quiten claves del payload.
+PAYLOAD_VERSION = 2
 DEFAULT_MONTHS = 12
 GRANULARITIES = ('month', 'week')
 
@@ -79,7 +84,7 @@ class PlatformStatsView(GenericAPIView):
             return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         lang = get_language_from_request(request)
-        cache_key = f'stats_platform_{since.date()}_{until.date()}_{granularity}_{lang}'
+        cache_key = f'stats_platform_v{PAYLOAD_VERSION}_{since.date()}_{until.date()}_{granularity}_{lang}'
         if request.query_params.get('refresh') not in ('1', 'true'):
             cached = cache.get(cache_key)
             if cached is not None:
@@ -168,7 +173,7 @@ class MyStatsView(GenericAPIView):
             return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         lang = get_language_from_request(request)
-        cache_key = f'stats_me_{request.user.id}_{since.date()}_{until.date()}_{granularity}_{lang}'
+        cache_key = f'stats_me_v{PAYLOAD_VERSION}_{request.user.id}_{since.date()}_{until.date()}_{granularity}_{lang}'
         if request.query_params.get('refresh') not in ('1', 'true'):
             cached = cache.get(cache_key)
             if cached is not None:
@@ -237,7 +242,7 @@ class ProjectStatsView(GenericAPIView):
             return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         lang = get_language_from_request(request)
-        cache_key = f'stats_project_{pk}_{since.date()}_{until.date()}_{granularity}_{lang}'
+        cache_key = f'stats_project_v{PAYLOAD_VERSION}_{pk}_{since.date()}_{until.date()}_{granularity}_{lang}'
         if request.query_params.get('refresh') not in ('1', 'true'):
             cached = cache.get(cache_key)
             if cached is not None:

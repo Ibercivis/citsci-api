@@ -1162,3 +1162,30 @@ class EvolutionInEndpointsTests(APITestCase):
         self.assertIn('contributors', data['series'])
         self.assertIn('by_platform', data['series'])
         self.assertIn('observations', data['comparison'])
+
+
+@override_settings(CACHES=TEST_CACHES)
+class CacheVersionTests(APITestCase):
+    """
+    La clave de caché lleva la versión del payload. Sin eso, tras desplegar un cambio de forma la
+    API sigue sirviendo la antigua hasta 10 minutos y el front recibe respuestas incoherentes según
+    le toque caché o no. Pasó el 2026-09-10 al añadir `comparison`.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.staff = User.objects.create_user(username='cachev', email='cv@example.com', is_staff=True)
+        cls.token = Token.objects.create(user=cls.staff)
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+
+    def test_the_cache_key_carries_the_payload_version(self):
+        from django.core.cache import cache
+        from stats.api.views import PAYLOAD_VERSION
+        self.client.get(reverse('stats_platform'))
+        claves = [k for k in cache._cache.keys() if 'stats_platform' in str(k)]
+        self.assertTrue(claves, 'no se ha cacheado nada')
+        self.assertTrue(any(f'_v{PAYLOAD_VERSION}_' in str(k) for k in claves), claves)
