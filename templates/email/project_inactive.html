@@ -1,0 +1,40 @@
+{% extends "email/base.html" %}
+{% load i18n %}
+
+{% block subject %}{{ subject }}{% endblock %}
+
+{% block content %}
+  <h1 style="margin:0 0 6px 0;font-size:23px;font-weight:700;color:#111827;">{{ project_name }}</h1>
+  <p style="margin:0 0 24px 0;font-size:15px;line-height:1.6;color:#6b7585;">
+    {% blocktrans %}Este proyecto no ha recibido observaciones en los últimos {{ days }} días.{% endblocktrans %}
+    {% if last_observation %}{% blocktrans %}La última llegó el {{ last_observation }}.{% endblocktrans %}{% else %}{% trans "Todavía no ha recibido ninguna." %}{% endif %}
+  </p>
+
+  <table cellpadding="0" cellspacing="0" width="100%" style="background-color:#f0f2f8;border-left:4px solid #2563eb;border-radius:0 8px 8px 0;margin-bottom:24px;">
+    <tr>
+      <td style="padding:18px 20px;font-size:15px;line-height:1.7;color:#111827;">
+        <p style="margin:0 0 12px 0;"><strong>{% trans "¿Te echamos una mano?" %}</strong></p>
+        <p style="margin:0 0 12px 0;color:#6b7585;">
+          {% trans "Responde a este correo y lo vemos contigo: difusión, revisar el formulario, un QR para recoger datos sin necesidad de cuenta, o lo que haga falta." %}
+        </p>
+        <p style="margin:0;color:#6b7585;">
+          {% trans "Y si el proyecto ya ha cumplido su ciclo, puedes marcarlo como terminado desde su página de edición. Los datos se conservan y deja de aparecer como activo." %}
+        </p>
+      </td>
+    </tr>
+  </table>
+
+  <p style="margin:0 0 24px 0;">
+    <a href="{{ url }}" style="display:inline-block;background-color:#2563eb;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:15px;font-weight:600;">{% trans "Ir al proyecto" %}</a>
+  </p>
+
+  <p style="margin:0;font-size:13px;color:#6b7585;">
+    {% trans "Si prefieres no recibir este resumen, puedes desactivarlo en los ajustes del proyecto." %}
+  </p>
+{% endblock %}
+
+{% block footer_note %}
+  <p style="margin:0;font-size:12px;color:#6b7585;">
+    {% blocktrans %}Puedes responder a este correo: llega a {{ contact_email }}.{% endblocktrans %}
+  </p>
+{% endblock %}

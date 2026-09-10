@@ -18,7 +18,8 @@ from project.models import Project
 from stats import metrics
 from stats.models import NotificationLog
 from stats.digest import build_digest_context, digest_window
-from stats.tasks import send_digest, send_platform_notification
+from stats.project_digest import build_project_context, project_digest_kind
+from stats.tasks import send_digest, send_platform_notification, send_project_digest
 
 # La cache por defecto es el Redis de produccion: los tests usan locmem para no escribir ahi ni
 # arrastrar estado entre ejecuciones. Vale tambien para el throttle, que se apoya en la cache.
@@ -751,3 +752,128 @@ class AbandonedProjectsTests(TestCase):
     def test_the_digest_carries_the_names(self):
         context = build_digest_context('month', now=self.now)
         self.assertIn('Parado hace mucho', [p['name'] for p in context['abandoned_projects']])
+
+
+@override_settings(
+    CACHES=TEST_CACHES,
+    EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+    PLATFORM_CONTACT_EMAIL='info@ibercivis.es',
+)
+class ProjectDigestTests(TestCase):
+    """
+    El informe mensual por proyecto, y a quién NO se le manda: un borrador parado no es un proyecto
+    abandonado, es uno que aún no ha salido. En producción hay 24 borradores sin actividad frente a
+    1 publicado; avisarles a todos sería ruido del que acaba en spam.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.now = timezone.now()
+        cls.creator = User.objects.create_user(username='creadora', email='c@example.com')
+        cls.admin = User.objects.create_user(username='admina2', email='a@example.com')
+
+        cls.activo = _make_project(cls.creator, 'Con actividad')
+        cls.activo.administrators.add(cls.admin)
+        _make_observation(cls.activo, created_at=cls.now - timedelta(days=2), creator=cls.creator)
+        _make_observation(cls.activo, created_at=cls.now - timedelta(days=3),
+                          anonymous_id='66666666-6666-6666-6666-666666666666', platform='web')
+
+        cls.parado = _make_project(cls.creator, 'Publicado y parado')
+        _make_observation(cls.parado, created_at=cls.now - timedelta(days=200), creator=cls.creator)
+
+        cls.borrador = _make_project(cls.creator, 'Borrador parado', draft=True)
+        cls.terminado = _make_project(cls.creator, 'Terminado', ended=True)
+
+    def setUp(self):
+        mail.outbox = []
+
+    # --- a quién le toca qué ---
+
+    def test_a_project_with_activity_gets_the_report(self):
+        self.assertEqual(project_digest_kind(self.activo, 'month', now=self.now), 'report')
+
+    def test_a_published_stale_project_gets_the_nudge(self):
+        self.assertEqual(project_digest_kind(self.parado, 'month', now=self.now), 'inactive')
+
+    def test_a_stale_draft_gets_nothing(self):
+        self.assertIsNone(project_digest_kind(self.borrador, 'month', now=self.now))
+
+    def test_an_ended_project_gets_nothing(self):
+        self.assertIsNone(project_digest_kind(self.terminado, 'month', now=self.now))
+
+    def test_the_flag_turns_it_off(self):
+        self.activo.email_monthly_stats = False
+        self.activo.save(update_fields=['email_monthly_stats'])
+        self.assertIsNone(project_digest_kind(self.activo, 'month', now=self.now))
+
+    # --- contenido ---
+
+    def test_the_report_goes_to_creator_and_administrators(self):
+        send_project_digest(self.activo.id, 'month')
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(sorted(mail.outbox[0].to), ['a@example.com', 'c@example.com'])
+        self.assertIn('Con actividad', mail.outbox[0].subject)
+
+    def test_new_and_recurring_contributors(self):
+        context = build_project_context(self.activo, 'month', now=self.now)
+        # una con cuenta y una anónima, las dos estrenándose en el proyecto
+        self.assertEqual(context['contributors'], {'new': 2, 'recurring': 0, 'total': 2})
+
+    def test_a_contributor_from_before_counts_as_recurring(self):
+        _make_observation(self.activo, created_at=self.now - timedelta(days=200),
+                          creator=self.creator)
+        context = build_project_context(self.activo, 'month', now=self.now)
+        self.assertEqual(context['contributors']['recurring'], 1)
+        self.assertEqual(context['contributors']['new'], 1)
+
+    def test_the_nudge_can_be_replied_to_and_says_where(self):
+        """El pie de 'no responder' no vale en un correo que invita a responder."""
+        send_project_digest(self.parado.id, 'month')
+        message = mail.outbox[0]
+        self.assertEqual(message.reply_to, ['info@ibercivis.es'])
+        self.assertIn('sin actividad', message.subject)
+        self.assertIn('info@ibercivis.es', message.alternatives[0][0])
+        self.assertNotIn('por favor no responder', message.alternatives[0][0])
+
+    def test_the_report_keeps_the_do_not_reply_footer(self):
+        send_project_digest(self.activo.id, 'month')
+        self.assertEqual(mail.outbox[0].reply_to, [])
+        self.assertIn('no responder', mail.outbox[0].alternatives[0][0])
+
+    def test_the_project_report_never_exposes_the_anonymous_id(self):
+        send_project_digest(self.activo.id, 'month')
+        self.assertNotIn('66666666-6666-6666-6666-666666666666',
+                         mail.outbox[0].alternatives[0][0])
+
+    # --- tope de avisos ---
+
+    def test_the_nudge_stops_after_three_in_a_row(self):
+        """Repetirlo cada mes durante años es acoso, y el spam se paga en reputación de SES."""
+        for n in range(3):
+            NotificationLog.objects.create(
+                event='project-inactive', period_key=f'project-{self.parado.id}-inactive-{n}',
+                status=NotificationLog.STATUS_SENT)
+        self.assertIsNone(project_digest_kind(self.parado, 'month', now=self.now))
+
+    def test_activity_resets_the_nudge_counter(self):
+        for n in range(3):
+            NotificationLog.objects.create(
+                event='project-inactive', period_key=f'project-{self.parado.id}-inactive-{n}',
+                status=NotificationLog.STATUS_SENT)
+        NotificationLog.objects.create(
+            event='project-digest', period_key=f'project-{self.parado.id}-digest-x',
+            status=NotificationLog.STATUS_SENT)
+        self.assertEqual(project_digest_kind(self.parado, 'month', now=self.now), 'inactive')
+
+    def test_sending_twice_for_the_same_period_sends_one_email(self):
+        send_project_digest(self.activo.id, 'month')
+        send_project_digest(self.activo.id, 'month')
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_a_project_without_any_email_records_the_failure(self):
+        huerfano = _make_project(User.objects.create_user(username='sinmail'), 'Sin correo')
+        _make_observation(huerfano, created_at=self.now - timedelta(days=1))
+        send_project_digest(huerfano.id, 'month')
+        self.assertEqual(len(mail.outbox), 0)
+        log = NotificationLog.objects.get(period_key__startswith=f'project-{huerfano.id}-digest-')
+        self.assertEqual(log.status, NotificationLog.STATUS_FAILED)

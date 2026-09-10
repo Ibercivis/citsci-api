@@ -49,6 +49,10 @@ class Project(models.Model):
     is_global = models.BooleanField(default=True)
     ended = models.BooleanField(default=False)
     email_on_observation = models.BooleanField(default=False)
+    # Informe mensual al creador y administradores del proyecto. Activado por defecto y
+    # desactivable, al reves que email_on_observation: el informe se manda solo si hubo actividad,
+    # asi que por defecto no genera ruido.
+    email_monthly_stats = models.BooleanField(default=True)
     draft = models.BooleanField(default=True)
     public_map = models.BooleanField(default=False)
     show_post_message = models.BooleanField(default=False)

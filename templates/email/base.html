@@ -28,7 +28,7 @@
           <!-- Footer -->
           <tr>
             <td style="background-color:#f0f2f8;padding:20px 32px;border-top:1px solid #e2e5ed;text-align:center;">
-              <p style="margin:0;font-size:12px;color:#6b7585;">{% trans "Este es un email automático, por favor no responder." %}</p>
+              {% block footer_note %}<p style="margin:0;font-size:12px;color:#6b7585;">{% trans "Este es un email automático, por favor no responder." %}</p>{% endblock %}
               <p style="margin:8px 0 0 0;font-size:12px;color:#6b7585;">© Geonity · <a href="https://geonity.ibercivis.es" style="color:#2563eb;text-decoration:none;">geonity.ibercivis.es</a></p>
             </td>
           </tr>

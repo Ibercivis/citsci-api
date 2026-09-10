@@ -39,6 +39,14 @@ SCHEDULED_JOBS = [
         'args': ['month'],
         'description': 'Resumen mensual de plataforma (dia 1 a las 08:00 hora local)',
     },
+    {
+        'id': 'geonity-project-digests-monthly',
+        'cron': '0 9 1 * *',
+        'func': 'stats.tasks.send_project_digests',
+        'args': ['month'],
+        # Una hora despues del de plataforma, para no soltar todos los correos a la vez.
+        'description': 'Informe mensual a cada proyecto (dia 1 a las 09:00 hora local)',
+    },
 ]
 
 

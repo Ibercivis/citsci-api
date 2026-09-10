@@ -316,6 +316,10 @@ PLATFORM_NOTIFICATION_EMAILS = env.list('PLATFORM_NOTIFICATION_EMAILS', default=
 # hora se gestiona solo (UTC+2 en verano, UTC+1 en invierno).
 PLATFORM_NOTIFICATION_TIMEZONE = env('PLATFORM_NOTIFICATION_TIMEZONE', default='Europe/Madrid')
 
+# Direccion real de contacto. Va como Reply-To SOLO en los correos que invitan a responder (el aviso
+# a un proyecto publicado sin actividad), donde el pie habitual de "no responder" no vale.
+PLATFORM_CONTACT_EMAIL = env('PLATFORM_CONTACT_EMAIL', default='')
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,

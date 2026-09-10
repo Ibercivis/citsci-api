@@ -125,7 +125,7 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
 
     class Meta:
         model = Project
-        fields = ['id', 'name', 'description', 'post_observation_message', 'email_intro', 'email_subject', 'created_at', 'updated_at', 'topic', 'hasTag', 'cover', 'contributions', 'total_likes', 'is_liked_by_user', 'is_creator', 'is_admin', 'is_member', 'has_observations', 'last_observation', 'organizations', 'organizations_write', 'creator', 'administrators', 'is_private', 'raw_password', 'field_form', 'fuzzy', 'private_data', 'countries', 'is_global', 'ended', 'allowed_platforms', 'email_on_observation', 'draft', 'public_map', 'show_post_message', 'anonymous_contribution', 'anonymous_token']
+        fields = ['id', 'name', 'description', 'post_observation_message', 'email_intro', 'email_subject', 'created_at', 'updated_at', 'topic', 'hasTag', 'cover', 'contributions', 'total_likes', 'is_liked_by_user', 'is_creator', 'is_admin', 'is_member', 'has_observations', 'last_observation', 'organizations', 'organizations_write', 'creator', 'administrators', 'is_private', 'raw_password', 'field_form', 'fuzzy', 'private_data', 'countries', 'is_global', 'ended', 'allowed_platforms', 'email_on_observation', 'email_monthly_stats', 'draft', 'public_map', 'show_post_message', 'anonymous_contribution', 'anonymous_token']
 
     def validate(self, data):
         # En creación (no hay instancia), name, description, cover y field_form son obligatorios
