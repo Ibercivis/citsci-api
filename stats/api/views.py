@@ -2,14 +2,19 @@ from datetime import timedelta
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+from django.utils.translation import gettext as _
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import GenericAPIView
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 
-from field_forms.translation import get_language_from_request
+from field_forms.translation import get_language_from_request, resolve_translation
+from markers.api.views import _is_project_admin
 from markers.models import Observation
 from project.models import Project
 from stats import metrics
@@ -130,6 +135,122 @@ class PlatformStatsView(GenericAPIView):
                 'creators_by_observations': metrics.top_creators(projects, lang=lang),
             },
             'last_digest_sent_at': last_digest,
+            'cached': False,
+        }
+        cache.set(cache_key, payload, CACHE_TIMEOUT)
+        return Response(payload)
+
+
+class MyStatsView(GenericAPIView):
+    """
+    GET /api/stats/me/ — nivel de proyecto sobre los proyectos que el usuario crea o administra.
+
+    No incluye los `top`: comparar proyectos entre si es exclusivo del nivel de plataforma.
+    """
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [StatsThrottle]
+
+    def get(self, request, *args, **kwargs):
+        try:
+            since, until, granularity, now = _parse_period(request)
+        except InvalidParams as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        lang = get_language_from_request(request)
+        cache_key = f'stats_me_{request.user.id}_{since.date()}_{until.date()}_{granularity}_{lang}'
+        if request.query_params.get('refresh') not in ('1', 'true'):
+            cached = cache.get(cache_key)
+            if cached is not None:
+                cached['cached'] = True
+                return Response(cached)
+
+        projects = Project.objects.filter(
+            Q(creator=request.user) | Q(administrators=request.user)
+        ).distinct()
+        observations = Observation.objects.filter(field_form__project__in=projects)
+
+        series, cumulative = metrics.timeseries(
+            observations, 'created_at', since, until, granularity)
+
+        payload = {
+            'generated_at': now,
+            'period': {
+                'from': since.date().isoformat(),
+                'to': until.date().isoformat(),
+                'granularity': granularity,
+            },
+            'projects': metrics.project_metrics(projects, now=now),
+            'observations': metrics.observation_metrics(observations, now=now),
+            'contributors': metrics.contributor_metrics(observations),
+            'series': {
+                'observations': series,
+                'observations_cumulative': cumulative,
+            },
+            'per_project': metrics.per_project_summary(projects, lang=lang, now=now),
+            'cached': False,
+        }
+        cache.set(cache_key, payload, CACHE_TIMEOUT)
+        return Response(payload)
+
+
+class ProjectStatsView(GenericAPIView):
+    """
+    GET /api/project/<pk>/stats/ — nivel de proyecto, para su creador y sus administradores.
+
+    Los miembros (ProjectMembership) NO acceden: tienen el nivel publico, que ya expone el total de
+    observaciones en el serializer de proyecto, y sus propias observaciones en /observations/my/.
+    """
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [StatsThrottle]
+
+    def get(self, request, pk, *args, **kwargs):
+        project = get_object_or_404(Project, pk=pk)
+        # Se reutiliza el helper que ya existe en markers en vez de escribir una tercera variante
+        # de esta comprobacion: creador o administrador del proyecto.
+        if not _is_project_admin(request.user, project):
+            raise PermissionDenied(
+                _('Solo el creador y los administradores del proyecto ven sus estadísticas.'))
+
+        try:
+            since, until, granularity, now = _parse_period(request)
+        except InvalidParams as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        lang = get_language_from_request(request)
+        cache_key = f'stats_project_{pk}_{since.date()}_{until.date()}_{granularity}_{lang}'
+        if request.query_params.get('refresh') not in ('1', 'true'):
+            cached = cache.get(cache_key)
+            if cached is not None:
+                cached['cached'] = True
+                return Response(cached)
+
+        observations = Observation.objects.filter(field_form__project=project)
+        series, cumulative = metrics.timeseries(
+            observations, 'created_at', since, until, granularity)
+
+        payload = {
+            'generated_at': now,
+            'period': {
+                'from': since.date().isoformat(),
+                'to': until.date().isoformat(),
+                'granularity': granularity,
+            },
+            'project': {
+                'id': project.id,
+                'name': resolve_translation(project.name, lang),
+                'published': not project.draft and not project.ended,
+                'draft': project.draft,
+                'ended': project.ended,
+                'created_at': project.created_at,
+                'published_at': project.published_at,
+            },
+            'observations': metrics.observation_metrics(observations, now=now),
+            'contributors': metrics.contributor_metrics(observations),
+            'span': metrics.observation_span(observations),
+            'series': {
+                'observations': series,
+                'observations_cumulative': cumulative,
+            },
             'cached': False,
         }
         cache.set(cache_key, payload, CACHE_TIMEOUT)

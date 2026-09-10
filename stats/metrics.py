@@ -18,7 +18,7 @@ Dos reglas que no son obvias y conviene no romper:
 from datetime import timedelta
 
 from django.contrib.auth.models import User
-from django.db.models import Count, Max, Q
+from django.db.models import Count, Max, Min, Q
 from django.db.models.functions import TruncMonth, TruncWeek
 from django.utils import timezone
 
@@ -224,3 +224,56 @@ def top_creators(project_qs, lang='es', limit=10):
         }
         for r in rows
     ]
+
+
+def contributor_metrics(observation_qs):
+    """
+    Cuantas personas distintas han contribuido. Los anonimos se cuentan por `anonymous_id`, que es
+    lo mas cerca que se puede estar de "un navegador": no identifica a nadie y NO sale en la
+    respuesta, solo su cardinalidad.
+    """
+    registered = observation_qs.filter(creator__isnull=False).values('creator_id').distinct().count()
+    anonymous = observation_qs.filter(anonymous_id__isnull=False).values('anonymous_id').distinct().count()
+    return {
+        'registered': registered,
+        'anonymous': anonymous,
+        'total': registered + anonymous,
+    }
+
+
+def per_project_summary(project_qs, lang='es', now=None):
+    """Una fila por proyecto, en una sola query. Nada de Project.contributions, que es N+1."""
+    now = now or timezone.now()
+    active_cutoff = now - timedelta(days=ACTIVE_DAYS)
+
+    rows = (
+        project_qs
+        .annotate(
+            observations_count=Count('fieldform__observations'),
+            last_observation_at=Max('fieldform__observations__created_at'),
+        )
+        .order_by('-observations_count', 'id')
+        .values('id', 'name', 'draft', 'ended', 'created_at', 'published_at',
+                'observations_count', 'last_observation_at')
+    )
+    return [
+        {
+            'id': r['id'],
+            'name': resolve_translation(r['name'], lang),
+            'published': not r['draft'] and not r['ended'],
+            'draft': r['draft'],
+            'ended': r['ended'],
+            'created_at': r['created_at'],
+            'published_at': r['published_at'],
+            'observations': r['observations_count'],
+            'last_observation': r['last_observation_at'],
+            'active_30d': bool(r['last_observation_at'] and r['last_observation_at'] >= active_cutoff),
+        }
+        for r in rows
+    ]
+
+
+def observation_span(observation_qs):
+    """Primera y ultima observacion, por fecha de servidor."""
+    span = observation_qs.aggregate(first=Min('created_at'), last=Max('created_at'))
+    return {'first_observation': span['first'], 'last_observation': span['last']}

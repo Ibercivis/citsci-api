@@ -214,3 +214,122 @@ class PlatformStatsViewTests(APITestCase):
         self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.staff_token.key}')
         with self.assertNumQueries(24):
             self.client.get(self.url)
+
+
+@override_settings(CACHES=TEST_CACHES)
+class ProjectLevelStatsTests(APITestCase):
+    """
+    Los tres niveles de visibilidad: publico (ya existia), proyecto (creador + administradores) y
+    plataforma (is_staff). Aqui se fija el del medio.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        from project.models import ProjectMembership
+
+        cls.creator = User.objects.create_user(username='duena', email='d@example.com')
+        cls.admin = User.objects.create_user(username='admina', email='a@example.com')
+        cls.member = User.objects.create_user(username='miembro', email='m@example.com')
+        cls.stranger = User.objects.create_user(username='ajena', email='x@example.com')
+        cls.other_creator = User.objects.create_user(username='otra', email='o@example.com')
+
+        cls.project = _make_project(cls.creator, 'Mío')
+        cls.project.administrators.add(cls.admin)
+        ProjectMembership.objects.create(project=cls.project, user=cls.member)
+
+        cls.other = _make_project(cls.other_creator, 'Ajeno')
+
+        _make_observation(cls.project, created_at=timezone.now() - timedelta(days=1),
+                          creator=cls.member)
+        _make_observation(cls.project, created_at=timezone.now() - timedelta(days=3),
+                          anonymous_id='44444444-4444-4444-4444-444444444444', platform='web')
+        _make_observation(cls.other, created_at=timezone.now() - timedelta(days=1),
+                          creator=cls.other_creator)
+
+        cls.tokens = {u.username: Token.objects.create(user=u).key
+                      for u in (cls.creator, cls.admin, cls.member, cls.stranger, cls.other_creator)}
+        cls.project_url = reverse('stats_project', args=[cls.project.id])
+        cls.me_url = reverse('stats_me')
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+
+    def _as(self, username):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.tokens[username]}')
+
+    # --- /api/project/<pk>/stats/ ---
+
+    def test_anonymous_gets_401(self):
+        self.client.credentials()
+        self.assertEqual(self.client.get(self.project_url).status_code, 401)
+
+    def test_creator_and_admin_get_200(self):
+        for username in ('duena', 'admina'):
+            self._as(username)
+            self.assertEqual(self.client.get(self.project_url).status_code, 200, username)
+
+    def test_member_is_denied(self):
+        """Decidido: los miembros NO ven el nivel de proyecto, solo el público y lo suyo."""
+        self._as('miembro')
+        self.assertEqual(self.client.get(self.project_url).status_code, 403)
+
+    def test_stranger_is_denied(self):
+        self._as('ajena')
+        self.assertEqual(self.client.get(self.project_url).status_code, 403)
+
+    def test_project_payload(self):
+        self._as('duena')
+        data = self.client.get(self.project_url).data
+        self.assertEqual(data['project']['id'], self.project.id)
+        self.assertEqual(data['observations']['total'], 2)
+        self.assertEqual(data['contributors'], {'registered': 1, 'anonymous': 1, 'total': 2})
+        self.assertIsNotNone(data['span']['first_observation'])
+        # Los rankings entre proyectos son exclusivos del nivel de plataforma.
+        self.assertNotIn('top', data)
+
+    def test_project_stats_never_expose_the_anonymous_id(self):
+        self._as('duena')
+        body = self.client.get(self.project_url).content.decode()
+        self.assertNotIn('44444444-4444-4444-4444-444444444444', body)
+        self.assertNotIn('anonymous_id', body)
+
+    def test_404_for_a_project_that_does_not_exist(self):
+        self._as('duena')
+        self.assertEqual(self.client.get(reverse('stats_project', args=[999999])).status_code, 404)
+
+    # --- /api/stats/me/ ---
+
+    def test_me_only_counts_my_projects(self):
+        self._as('duena')
+        data = self.client.get(self.me_url).data
+        self.assertEqual(data['projects']['total'], 1)
+        self.assertEqual(data['observations']['total'], 2)
+        self.assertEqual([p['id'] for p in data['per_project']], [self.project.id])
+
+    def test_me_includes_projects_i_administrate(self):
+        self._as('admina')
+        data = self.client.get(self.me_url).data
+        self.assertEqual([p['id'] for p in data['per_project']], [self.project.id])
+
+    def test_me_is_empty_for_someone_without_projects(self):
+        self._as('ajena')
+        data = self.client.get(self.me_url).data
+        self.assertEqual(data['projects']['total'], 0)
+        self.assertEqual(data['per_project'], [])
+
+    def test_me_does_not_leak_other_peoples_projects(self):
+        self._as('duena')
+        body = self.client.get(self.me_url).content.decode()
+        self.assertNotIn('Ajeno', body)
+
+    def test_me_has_no_cross_project_ranking(self):
+        self._as('duena')
+        self.assertNotIn('top', self.client.get(self.me_url).data)
+
+    def test_per_project_marks_activity(self):
+        self._as('duena')
+        row = self.client.get(self.me_url).data['per_project'][0]
+        self.assertTrue(row['active_30d'])
+        self.assertEqual(row['observations'], 2)
+        self.assertTrue(row['published'])
