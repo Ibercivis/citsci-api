@@ -645,3 +645,60 @@ class SchedulerTimezoneTests(TestCase):
                 now=ahora, return_datetime=True).astimezone(dateutil.tz.tzlocal())
             self.assertEqual(siguiente.hour, 8)
             self.assertEqual(siguiente.astimezone(ZoneInfo('UTC')).hour, utc_esperado)
+
+
+@override_settings(CACHES=TEST_CACHES, PLATFORM_NOTIFICATION_EMAILS=['uno@example.com'])
+class DigestInsightsTests(TestCase):
+    """Comparación con el periodo anterior y datos de los gráficos."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.now = timezone.now()
+        cls.creator = User.objects.create_user(username='insights', email='i@example.com')
+        cls.project = _make_project(cls.creator, 'Evolución')
+        # 2 en la quincena actual, 4 en la anterior -> caída del 50%
+        for days in (1, 2):
+            _make_observation(cls.project, created_at=cls.now - timedelta(days=days),
+                              creator=cls.creator)
+        for days in (17, 18, 19, 20):
+            _make_observation(cls.project, created_at=cls.now - timedelta(days=days),
+                              platform='web')
+
+    def _context(self):
+        return build_digest_context('fortnightly', now=self.now)
+
+    def test_headline_compares_against_the_previous_window(self):
+        observaciones = self._context()['headline'][0]
+        self.assertEqual(observaciones['value'], 2)
+        self.assertEqual(observaciones['previous'], 4)
+        self.assertEqual(observaciones['delta_pct'], -50)
+        self.assertEqual(observaciones['direction'], 'down')
+
+    def test_no_percentage_is_invented_when_there_is_no_baseline(self):
+        """Con 0 en el periodo anterior no hay porcentaje posible: se dice, no se inventa."""
+        proyectos = self._context()['headline'][2]
+        self.assertEqual(proyectos['previous'], 0)
+        self.assertIsNone(proyectos['delta_pct'])
+
+    def test_there_are_exactly_six_bars_per_chart(self):
+        """
+        Se arranca el día 1 del mes correspondiente. Con `until - 30*6 días` salían 7 barras y la
+        primera era un mes a medias, o sea una caída falsa al principio de la serie.
+        """
+        for chart in self._context()['charts']:
+            self.assertEqual(len(chart['bars']), 6, chart['title'])
+
+    def test_bar_heights_are_scaled_to_the_maximum(self):
+        bars = self._context()['charts'][0]['bars']
+        alturas = [b['height'] for b in bars if b['count']]
+        self.assertEqual(max(alturas), 80)
+        self.assertTrue(all(b['height'] == 1 for b in bars if not b['count']))
+
+    def test_the_platform_split_covers_the_period_not_all_of_history(self):
+        context = self._context()
+        self.assertEqual(sum(context['platform'].values()), context['new_observations'])
+        self.assertEqual(context['platform']['web'], 0)          # las de web son del periodo anterior
+        self.assertEqual(context['platform_all_time']['web'], 4)
+
+    def test_contributors_are_counted_within_the_period(self):
+        self.assertEqual(self._context()['contributors']['registered'], 1)

@@ -143,16 +143,43 @@ def send_digest(period='fortnightly', lang='es'):
         logger.warning(f'Resumen {period_key} sin destinatarios configurados')
         return
 
-    text_body = (
-        f'Resumen {context["period_label"]} de Geonity\n'
-        f'Periodo: {context["since"]} a {context["until"]} ({context["days"]} dias)\n\n'
-        f'Proyectos nuevos: {context["new_projects"]}\n'
-        f'Proyectos publicados: {context["published_projects"]}\n'
-        f'Observaciones nuevas: {context["new_observations"]}\n'
-        f'Usuarios nuevos: {context["new_users"]}\n\n'
-        f'Totales: {context["total_projects"]} proyectos ({context["total_published"]} publicados, '
-        f'{context["active_30d"]} activos en 30 dias), {context["total_observations"]} observaciones, '
-        f'{context["total_users"]} usuarios.\n'
-    )
+    text_body = _digest_text_body(context)
     _deliver(log, subject, 'email/platform_digest.html', context, recipients, lang,
              text_body=text_body)
+
+
+def _digest_text_body(context):
+    """Version en texto plano del resumen. Sin graficos, pero con las mismas cifras."""
+    lines = [
+        f'Resumen {context["period_label"]} de Geonity',
+        f'Periodo: {context["since"]} a {context["until"]} ({context["days"]} dias)',
+        '',
+    ]
+    for item in context['headline']:
+        if item['delta_pct'] is None:
+            lines.append(f'{item["label"]}: {item["value"]}')
+        else:
+            signo = '+' if item['delta_pct'] > 0 else ''
+            lines.append(f'{item["label"]}: {item["value"]} '
+                         f'({signo}{item["delta_pct"]}% vs {item["previous"]} del periodo anterior)')
+
+    contributors = context['contributors']
+    platform = context['platform']
+    lines += [
+        '',
+        f'Contribuidores distintos: {contributors["total"]} '
+        f'({contributors["registered"]} con cuenta, {contributors["anonymous"]} anonimos)',
+        f'Plataforma: {platform["mobile"]} movil, {platform["web"]} web, '
+        f'{platform["unknown"]} sin registrar',
+        '',
+        f'Totales: {context["total_projects"]} proyectos '
+        f'({context["total_published"]} publicados, {context["active_30d"]} activos en 30 dias, '
+        f'{context["abandoned"]} abandonados), {context["total_observations"]} observaciones '
+        f'({context["anonymous_observations"]} anonimas), {context["total_users"]} usuarios.',
+        '',
+        'Evolucion de los ultimos meses:',
+    ]
+    for chart in context['charts']:
+        serie = '  '.join(f'{bar["label"]} {bar["count"]}' for bar in chart['bars'])
+        lines.append(f'  {chart["title"]}: {serie}')
+    return '\n'.join(lines)

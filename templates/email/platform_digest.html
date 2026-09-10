@@ -11,36 +11,73 @@
     {% blocktrans %}Del {{ since }} al {{ until }} ({{ days }} días){% endblocktrans %}
   </p>
 
-  <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
-    <tr>
-      <td width="50%" style="padding:12px;background-color:#f0f2f8;border-radius:8px;">
-        <p style="margin:0;font-size:28px;font-weight:700;color:#111827;">{{ new_projects }}</p>
-        <p style="margin:4px 0 0 0;font-size:13px;color:#6b7585;">{% trans "proyectos nuevos" %}</p>
+  {# Cifras del periodo, con variación frente al periodo anterior de la misma duración #}
+  <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:32px;">
+    {% for item in headline %}{% if forloop.counter0|divisibleby:2 %}<tr>{% endif %}
+      <td width="48%" valign="top" style="padding:14px;background-color:#f0f2f8;border-radius:8px;">
+        <p style="margin:0;font-size:28px;font-weight:700;color:#111827;line-height:1.1;">{{ item.value }}</p>
+        <p style="margin:4px 0 0 0;font-size:13px;color:#6b7585;">{{ item.label }}</p>
+        {% if item.delta_pct is not None %}
+          <p style="margin:6px 0 0 0;font-size:12px;color:{% if item.direction == 'up' %}#16a34a{% elif item.direction == 'down' %}#dc2626{% else %}#6b7585{% endif %};">
+            {% if item.direction == 'up' %}&#9650;{% elif item.direction == 'down' %}&#9660;{% else %}&#9644;{% endif %}
+            {{ item.delta_pct }}% {% trans "vs. periodo anterior" %} ({{ item.previous }})
+          </p>
+        {% else %}
+          <p style="margin:6px 0 0 0;font-size:12px;color:#6b7585;">{% trans "sin datos del periodo anterior" %}</p>
+        {% endif %}
       </td>
-      <td width="8"></td>
-      <td width="50%" style="padding:12px;background-color:#f0f2f8;border-radius:8px;">
-        <p style="margin:0;font-size:28px;font-weight:700;color:#111827;">{{ published_projects }}</p>
-        <p style="margin:4px 0 0 0;font-size:13px;color:#6b7585;">{% trans "publicados" %}</p>
-      </td>
-    </tr>
-    <tr><td colspan="3" height="8"></td></tr>
-    <tr>
-      <td style="padding:12px;background-color:#f0f2f8;border-radius:8px;">
-        <p style="margin:0;font-size:28px;font-weight:700;color:#111827;">{{ new_observations }}</p>
-        <p style="margin:4px 0 0 0;font-size:13px;color:#6b7585;">{% trans "observaciones nuevas" %}</p>
-      </td>
-      <td width="8"></td>
-      <td style="padding:12px;background-color:#f0f2f8;border-radius:8px;">
-        <p style="margin:0;font-size:28px;font-weight:700;color:#111827;">{{ new_users }}</p>
-        <p style="margin:4px 0 0 0;font-size:13px;color:#6b7585;">{% trans "usuarios nuevos" %}</p>
-      </td>
-    </tr>
+      {% if forloop.counter0|divisibleby:2 %}<td width="4%"></td>{% endif %}
+    {% if not forloop.counter0|divisibleby:2 %}</tr><tr><td colspan="3" height="10"></td></tr>{% endif %}{% endfor %}
   </table>
 
-  <h2 style="margin:0 0 12px 0;font-size:16px;font-weight:700;color:#111827;">{% trans "Totales" %}</h2>
+  {# Barras con celdas de tabla, no SVG ni imagenes: es lo unico que renderiza en todos los clientes #}
+  <h2 style="margin:0 0 4px 0;font-size:16px;font-weight:700;color:#111827;">{% trans "Evolución" %}</h2>
+  <p style="margin:0 0 16px 0;font-size:13px;color:#6b7585;">{% blocktrans %}Últimos {{ chart_months }} meses{% endblocktrans %}</p>
+
+  {% for chart in charts %}
+  <p style="margin:0 0 6px 0;font-size:13px;font-weight:600;color:#111827;">{{ chart.title }}</p>
+  <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:20px;">
+    <tr>
+      {% for bar in chart.bars %}
+      <td valign="bottom" align="center" height="86" style="padding:0 2px;">
+        <table cellpadding="0" cellspacing="0" width="100%">
+          <tr><td align="center" style="font-size:10px;color:#6b7585;padding-bottom:3px;line-height:1;">{{ bar.count }}</td></tr>
+          <tr><td height="{{ bar.height }}" style="background-color:#2563eb;border-radius:3px 3px 0 0;font-size:0;line-height:0;">&nbsp;</td></tr>
+        </table>
+      </td>
+      {% endfor %}
+    </tr>
+    <tr>
+      {% for bar in chart.bars %}
+      <td align="center" style="font-size:11px;color:#6b7585;padding-top:5px;border-top:1px solid #e2e5ed;">{{ bar.label }}</td>
+      {% endfor %}
+    </tr>
+  </table>
+  {% endfor %}
+
+  <h2 style="margin:24px 0 12px 0;font-size:16px;font-weight:700;color:#111827;">{% trans "Quién contribuye" %}</h2>
+  <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:24px;font-size:14px;color:#6b7585;">
+    <tr><td style="padding:6px 0;border-bottom:1px solid #e2e5ed;">{% trans "Contribuidores distintos en el periodo" %}</td>
+        <td align="right" style="padding:6px 0;border-bottom:1px solid #e2e5ed;color:#111827;font-weight:600;">{{ contributors.total }}</td></tr>
+    <tr><td style="padding:6px 0 6px 16px;border-bottom:1px solid #e2e5ed;">{% trans "con cuenta" %}</td>
+        <td align="right" style="padding:6px 0;border-bottom:1px solid #e2e5ed;">{{ contributors.registered }}</td></tr>
+    <tr><td style="padding:6px 0 6px 16px;border-bottom:1px solid #e2e5ed;">{% trans "anónimos (QR)" %}</td>
+        <td align="right" style="padding:6px 0;border-bottom:1px solid #e2e5ed;">{{ contributors.anonymous }}</td></tr>
+    <tr><td style="padding:6px 0;border-bottom:1px solid #e2e5ed;">{% trans "Observaciones desde móvil" %}</td>
+        <td align="right" style="padding:6px 0;border-bottom:1px solid #e2e5ed;">{{ platform.mobile }}</td></tr>
+    <tr><td style="padding:6px 0;border-bottom:1px solid #e2e5ed;">{% trans "desde web" %}</td>
+        <td align="right" style="padding:6px 0;border-bottom:1px solid #e2e5ed;">{{ platform.web }}</td></tr>
+    {% if platform.unknown %}
+    <tr><td style="padding:6px 0;border-bottom:1px solid #e2e5ed;">{% trans "sin plataforma registrada" %}</td>
+        <td align="right" style="padding:6px 0;border-bottom:1px solid #e2e5ed;">{{ platform.unknown }}</td></tr>
+    {% endif %}
+  </table>
+
+  <h2 style="margin:0 0 12px 0;font-size:16px;font-weight:700;color:#111827;">{% trans "Estado de la plataforma" %}</h2>
   <p style="margin:0 0 24px 0;font-size:15px;line-height:1.8;color:#6b7585;">
     {% blocktrans %}{{ total_projects }} proyectos, de los que {{ total_published }} están publicados y {{ active_30d }} han recibido observaciones en los últimos 30 días.{% endblocktrans %}<br>
-    {% blocktrans %}{{ total_observations }} observaciones en total y {{ total_users }} usuarios registrados.{% endblocktrans %}
+    {% if abandoned %}{% blocktrans %}{{ abandoned }} publicados llevan más de 90 días sin actividad.{% endblocktrans %}<br>{% endif %}
+    {% blocktrans %}{{ total_observations }} observaciones en total ({{ anonymous_observations }} anónimas) y {{ total_users }} usuarios registrados.{% endblocktrans %}
   </p>
 
   {% if top_projects %}
