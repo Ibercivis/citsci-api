@@ -1018,3 +1018,39 @@ class RecipientLanguageTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         user.profile.refresh_from_db()
         self.assertEqual(user.profile.language, 'en')
+
+
+class ProjectSerializerFieldsTests(APITestCase):
+    """Los campos nuevos que el front necesita, y el que no debe poder escribir."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.creator = User.objects.create_user(username='dueño2', email='d2@example.com')
+        cls.token = Token.objects.create(user=cls.creator)
+        cls.project = _make_project(cls.creator, 'Con campos', draft=True)
+
+    def setUp(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+
+    def test_the_detail_exposes_the_new_fields(self):
+        data = self.client.get(f'/api/project/{self.project.id}/').data
+        self.assertIn('published_at', data)
+        self.assertIn('email_monthly_stats', data)
+        self.assertTrue(data['email_monthly_stats'])
+
+    def test_the_creator_can_turn_the_monthly_report_off(self):
+        response = self.client.patch(f'/api/project/{self.project.id}/',
+                                     {'email_monthly_stats': False}, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.project.refresh_from_db()
+        self.assertFalse(self.project.email_monthly_stats)
+
+    def test_published_at_cannot_be_written_from_the_api(self):
+        """
+        Si el cliente pudiera fijarla, la serie de "proyectos publicados por mes" dejaría de
+        significar nada.
+        """
+        self.client.patch(f'/api/project/{self.project.id}/',
+                          {'published_at': '2020-01-01T00:00:00Z'}, format='json')
+        self.project.refresh_from_db()
+        self.assertIsNone(self.project.published_at)

@@ -108,6 +108,9 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
         many=True,
         read_only=True)
     contributions = serializers.IntegerField(read_only=True)
+    # Primera publicacion, la fija record_project_state_change. Solo lectura: si el cliente pudiera
+    # escribirla, la serie de "proyectos publicados por mes" dejaria de significar nada.
+    published_at = serializers.DateTimeField(read_only=True)
     total_likes = serializers.IntegerField(read_only=True)
     is_liked_by_user = serializers.SerializerMethodField()
     is_creator = serializers.SerializerMethodField()
@@ -125,7 +128,7 @@ class ProjectSerializerCreateUpdate(serializers.ModelSerializer):
 
     class Meta:
         model = Project
-        fields = ['id', 'name', 'description', 'post_observation_message', 'email_intro', 'email_subject', 'created_at', 'updated_at', 'topic', 'hasTag', 'cover', 'contributions', 'total_likes', 'is_liked_by_user', 'is_creator', 'is_admin', 'is_member', 'has_observations', 'last_observation', 'organizations', 'organizations_write', 'creator', 'administrators', 'is_private', 'raw_password', 'field_form', 'fuzzy', 'private_data', 'countries', 'is_global', 'ended', 'allowed_platforms', 'email_on_observation', 'email_monthly_stats', 'draft', 'public_map', 'show_post_message', 'anonymous_contribution', 'anonymous_token']
+        fields = ['id', 'name', 'description', 'post_observation_message', 'email_intro', 'email_subject', 'created_at', 'updated_at', 'topic', 'hasTag', 'cover', 'contributions', 'total_likes', 'is_liked_by_user', 'is_creator', 'is_admin', 'is_member', 'has_observations', 'last_observation', 'published_at', 'organizations', 'organizations_write', 'creator', 'administrators', 'is_private', 'raw_password', 'field_form', 'fuzzy', 'private_data', 'countries', 'is_global', 'ended', 'allowed_platforms', 'email_on_observation', 'email_monthly_stats', 'draft', 'public_map', 'show_post_message', 'anonymous_contribution', 'anonymous_token']
 
     def validate(self, data):
         # En creación (no hay instancia), name, description, cover y field_form son obligatorios
@@ -427,6 +430,9 @@ class ProjectListSerializer(serializers.ModelSerializer):
     topic = TopicsSerializer(many=True, read_only=True)
     organizations = OrganizationSummarySerializer(many=True, read_only=True)
     contributions = serializers.IntegerField(read_only=True)
+    # Primera publicacion, la fija record_project_state_change. Solo lectura: si el cliente pudiera
+    # escribirla, la serie de "proyectos publicados por mes" dejaria de significar nada.
+    published_at = serializers.DateTimeField(read_only=True)
     total_likes = serializers.IntegerField(read_only=True)
     is_liked_by_user = serializers.SerializerMethodField()
     is_creator = serializers.SerializerMethodField()
@@ -437,7 +443,7 @@ class ProjectListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Project
-        fields = ['id', 'name', 'description', 'created_at', 'updated_at', 'topic', 'hasTag', 'contributions', 'total_likes', 'is_liked_by_user', 'is_creator', 'is_admin', 'is_member', 'has_observations', 'organizations', 'creator', 'administrators', 'is_private', 'fuzzy', 'private_data', 'countries', 'is_global', 'ended', 'allowed_platforms', 'draft', 'public_map', 'show_post_message', 'last_observation', 'anonymous_contribution', 'anonymous_token']
+        fields = ['id', 'name', 'description', 'created_at', 'updated_at', 'topic', 'hasTag', 'contributions', 'total_likes', 'is_liked_by_user', 'is_creator', 'is_admin', 'is_member', 'has_observations', 'organizations', 'creator', 'administrators', 'is_private', 'fuzzy', 'private_data', 'countries', 'is_global', 'ended', 'allowed_platforms', 'draft', 'public_map', 'show_post_message', 'last_observation', 'published_at', 'anonymous_contribution', 'anonymous_token']
 
     def get_is_liked_by_user(self, obj):
         user = self.context.get('user')

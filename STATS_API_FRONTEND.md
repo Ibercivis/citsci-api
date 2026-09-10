@@ -205,6 +205,50 @@ asumáis que siempre será así.
 
 ---
 
+## Campos nuevos en el proyecto
+
+Se han añadido dos campos a `GET/PATCH /api/project/<pk>/` que el panel necesita.
+
+### `email_monthly_stats` (booleano, escribible)
+
+Interruptor del **informe mensual del proyecto**, que se manda al creador y a los administradores
+el día 1 a las 09:00. Viene **activado por defecto**, al revés que `email_on_observation`: el
+informe solo sale si el proyecto tuvo actividad, así que estar activo no genera ruido.
+
+```http
+PATCH /api/project/172/     {"email_monthly_stats": false}
+```
+
+Conviene una casilla en los ajustes del proyecto, junto a la de `email_on_observation`. Está en el
+serializer de detalle y en el de "mis proyectos", **no en el listado público** — ahí no pinta nada.
+
+Un proyecto con el flag apagado no recibe ni el informe ni el aviso de inactividad.
+
+### `published_at` (fecha, **solo lectura**)
+
+Fecha de la **primera** publicación del proyecto. Sirve para mostrar "publicado el X" sin tener que
+pedir las estadísticas.
+
+Dos cosas que hay que entender:
+
+- Es **inmutable**. Un proyecto puede volver a borrador y publicarse otra vez; esta fecha sigue
+  apuntando a la primera. Si se sobrescribiera, la serie `projects_published` dejaría de medir
+  crecimiento.
+- Es **de solo lectura por API**: mandarla en un `PATCH` no hace nada, se ignora en silencio. La
+  fija el backend cuando `draft` pasa de `true` a `false`.
+- Es `null` en los proyectos que nunca se han publicado.
+
+El histórico completo de idas y venidas (publicado, despublicado, republicado, finalizado,
+reabierto) está en la tabla `ProjectStatusLog`, pero **no se expone por API**. Si el panel lo
+necesita, se añade.
+
+**Aviso sobre los datos anteriores al 2026-09-10**: el `published_at` de los proyectos que ya
+estaban publicados es una **estimación** — se rellenó con `created_at`, porque no había forma de
+saber cuándo se publicaron de verdad. Para esos, la fecha dice "cuándo se creó", no "cuándo se
+publicó".
+
+---
+
 ## Idioma del usuario
 
 Los correos automáticos (avisos de proyecto, resumen mensual, informe por proyecto) se mandan **en
@@ -265,7 +309,8 @@ elemento principal, marcando los que tienen `active_30d: false`.
 ## Lo que aún no hay, por si lo pedís
 
 - Variación respecto al periodo anterior **por API** (existe, pero solo dentro del email mensual).
-- Nombres de los proyectos abandonados por API (ídem: hoy solo en el email).
+- Nombres de los proyectos abandonados por API (hoy solo en el email mensual).
+- El histórico de `ProjectStatusLog` (publicado / despublicado / republicado / finalizado).
 - Estadísticas por pregunta del formulario, o sea la distribución de respuestas. Es lo más pedido y
   lo más caro: `Observation.data` es un JSONField con pares `{key, value}`. Está anotado como fase
   futura en `STATS_PLAN.md`.
