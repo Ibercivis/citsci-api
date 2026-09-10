@@ -190,9 +190,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Allow tokens for authentication
 REST_FRAMEWORK = {
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.AllowAny',
-    ],
+    # Ojo: aqui habia un segundo 'DEFAULT_PERMISSION_CLASSES': AllowAny que quedaba pisado por el
+    # de mas abajo (en un dict literal gana la ultima clave). El comportamiento no cambia; se
+    # borra para que nadie lea la equivocada.
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
     ],
@@ -214,6 +214,7 @@ REST_FRAMEWORK = {
         'anon_form': '60/min',
         'anon_submit': '20/hour',
         'anon_submit_id': '10/hour',
+        'stats': '30/min',
     },
 }
 

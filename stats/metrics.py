@@ -1,0 +1,226 @@
+"""
+Calculo de metricas. Funciones puras: reciben querysets y devuelven dicts.
+
+Aqui no se importa nada de DRF a proposito. Las tres vistas de estadisticas (plataforma, creador y
+proyecto) y el email de resumen periodico llaman a estas mismas funciones con querysets distintos,
+asi que los conteos se arreglan en un solo sitio.
+
+Dos reglas que no son obvias y conviene no romper:
+
+1. La actividad se mide con `Observation.created_at`, NUNCA con `Project.last_observation`. Este
+   ultimo se alimenta de `Observation.timestamp`, que lo manda el cliente sin validar (ver
+   markers/api/views.py, `request.data.get("timestamp")`): un movil con el reloj mal puesto dejaria
+   un proyecto "activo" para siempre. `created_at` es auto_now_add, lo pone el servidor.
+
+2. Nunca mezclar en un mismo `aggregate()` conteos que hagan JOIN (imagenes, audios) con conteos
+   que no lo hagan: el JOIN duplica filas e infla los demas. Van en llamadas separadas.
+"""
+from datetime import timedelta
+
+from django.contrib.auth.models import User
+from django.db.models import Count, Max, Q
+from django.db.models.functions import TruncMonth, TruncWeek
+from django.utils import timezone
+
+from field_forms.translation import resolve_translation
+from markers.models import Observation
+from organizations.models import Organization
+from project.models import Project, ProjectInvitation, ProjectMembership
+
+ACTIVE_DAYS = 30
+ABANDONED_DAYS = 90
+
+
+def _last_observation_by_project(project_qs):
+    """
+    {project_id: fecha de la ultima observacion} en una sola query, con created_at de servidor.
+    Solo aparecen los proyectos que tienen alguna observacion.
+    """
+    rows = (
+        Observation.objects
+        .filter(field_form__project__in=project_qs)
+        .values('field_form__project_id')
+        .annotate(last=Max('created_at'))
+    )
+    return {r['field_form__project_id']: r['last'] for r in rows}
+
+
+def project_metrics(project_qs, now=None):
+    now = now or timezone.now()
+    active_cutoff = now - timedelta(days=ACTIVE_DAYS)
+    abandoned_cutoff = now - timedelta(days=ABANDONED_DAYS)
+
+    counts = project_qs.aggregate(
+        total=Count('id'),
+        published=Count('id', filter=Q(draft=False, ended=False)),
+        draft=Count('id', filter=Q(draft=True)),
+        ended=Count('id', filter=Q(ended=True)),
+        private=Count('id', filter=Q(is_private=True)),
+        anonymous_enabled=Count('id', filter=Q(anonymous_contribution=True)),
+        public_map=Count('id', filter=Q(public_map=True)),
+    )
+
+    last_by_project = _last_observation_by_project(project_qs)
+    published_ids = set(project_qs.filter(draft=False, ended=False).values_list('id', flat=True))
+
+    active_ids = {pid for pid, last in last_by_project.items() if last >= active_cutoff}
+    recent_ids = {pid for pid, last in last_by_project.items() if last >= abandoned_cutoff}
+
+    counts['with_observations'] = len(last_by_project)
+    # Se cuenta sobre TODOS los proyectos, borradores incluidos: con la contribucion anonima por QR
+    # un borrador puede estar recogiendo datos activamente.
+    counts['active_30d'] = len(active_ids)
+    counts['active_30d_published'] = len(active_ids & published_ids)
+    counts['abandoned'] = len(published_ids - recent_ids)
+    return counts
+
+
+def observation_metrics(observation_qs, now=None):
+    now = now or timezone.now()
+    cutoff = now - timedelta(days=ACTIVE_DAYS)
+
+    counts = observation_qs.aggregate(
+        total=Count('id'),
+        last_30d=Count('id', filter=Q(created_at__gte=cutoff)),
+        anonymous=Count('id', filter=Q(anonymous_id__isnull=False)),
+    )
+    platform = observation_qs.aggregate(
+        mobile=Count('id', filter=Q(platform=Observation.PLATFORM_MOBILE)),
+        web=Count('id', filter=Q(platform=Observation.PLATFORM_WEB)),
+        unknown=Count('id', filter=Q(platform__isnull=True)),
+    )
+    # En su propia query: estos dos hacen JOIN y duplicarian filas de los conteos de arriba.
+    media = observation_qs.aggregate(
+        with_images=Count('id', filter=Q(images__isnull=False), distinct=True),
+        with_audio=Count('id', filter=Q(audios__isnull=False), distinct=True),
+    )
+
+    counts['by_platform'] = platform
+    counts.update(media)
+    return counts
+
+
+def user_metrics(now=None):
+    now = now or timezone.now()
+    cutoff = now - timedelta(days=ACTIVE_DAYS)
+
+    counts = User.objects.aggregate(
+        total=Count('id'),
+        active=Count('id', filter=Q(is_active=True)),
+        new_30d=Count('id', filter=Q(date_joined__gte=cutoff)),
+    )
+    counts['with_observations'] = (
+        Observation.objects.filter(creator__isnull=False).values('creator_id').distinct().count()
+    )
+    return counts
+
+
+def organization_metrics():
+    return {'total': Organization.objects.count()}
+
+
+def engagement_metrics():
+    return {
+        'memberships': ProjectMembership.objects.count(),
+        'invitations_pending': ProjectInvitation.objects.filter(status='pending').count(),
+        'likes': Project.likes.through.objects.count(),
+    }
+
+
+def _period_starts(since, until, granularity):
+    """Todos los inicios de periodo entre since y until, para rellenar los huecos sin datos."""
+    starts = []
+    if granularity == 'week':
+        cursor = since - timedelta(days=since.weekday())
+        cursor = cursor.replace(hour=0, minute=0, second=0, microsecond=0)
+        while cursor < until:
+            starts.append(cursor)
+            cursor = cursor + timedelta(days=7)
+    else:
+        cursor = since.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        while cursor < until:
+            starts.append(cursor)
+            cursor = (cursor + timedelta(days=32)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    return starts
+
+
+def timeseries(queryset, field, since, until, granularity='month'):
+    """
+    Serie por periodo con los huecos rellenos a 0, y su acumulado.
+
+    El acumulado arranca de lo que hubiera ANTES de `since` (una query extra), para que no parezca
+    que la plataforma nacio el primer dia del rango pedido.
+    """
+    if since >= until:
+        return [], []
+
+    trunc = TruncWeek if granularity == 'week' else TruncMonth
+    rows = (
+        queryset
+        .filter(**{f'{field}__gte': since, f'{field}__lt': until})
+        .annotate(period=trunc(field))
+        .values('period')
+        .annotate(count=Count('id'))
+        .order_by('period')
+    )
+    by_period = {r['period']: r['count'] for r in rows if r['period'] is not None}
+
+    running = queryset.filter(**{f'{field}__lt': since}).count()
+    series, cumulative = [], []
+    for start in _period_starts(since, until, granularity):
+        count = by_period.get(start, 0)
+        running += count
+        key = start.date().isoformat()
+        series.append({'period': key, 'count': count})
+        cumulative.append({'period': key, 'count': running})
+    return series, cumulative
+
+
+def top_projects(project_qs, lang='es', limit=10):
+    rows = (
+        project_qs
+        .annotate(observations=Count('fieldform__observations'))
+        .filter(observations__gt=0)
+        .order_by('-observations', 'id')
+        .values('id', 'name', 'observations', 'draft', 'ended')[:limit]
+    )
+    return [
+        {
+            'id': r['id'],
+            'name': resolve_translation(r['name'], lang),
+            'observations': r['observations'],
+            'published': not r['draft'] and not r['ended'],
+        }
+        for r in rows
+    ]
+
+
+def top_creators(project_qs, lang='es', limit=10):
+    """
+    Creadores de proyecto ordenados por observaciones recibidas en el conjunto de sus proyectos.
+    No son los usuarios que mas observaciones envian: son los que llevan los proyectos mas activos.
+
+    Se devuelve el username, nunca el email.
+    """
+    # Ojo: no se puede anotar como `observations`, que es el related_name de Observation.creator
+    # en User y Django lo rechaza por colision con un campo del modelo.
+    rows = (
+        User.objects
+        .filter(project__in=project_qs)
+        .annotate(
+            observations_received=Count('project__fieldform__observations'),
+            projects_count=Count('project', distinct=True),
+        )
+        .filter(observations_received__gt=0)
+        .order_by('-observations_received', 'id')
+        .values('id', 'username', 'observations_received', 'projects_count')[:limit]
+    )
+    return [
+        {
+            'id': r['id'],
+            'username': r['username'],
+            'observations': r['observations_received'],
+            'projects': r['projects_count'],
+        }
+        for r in rows
+    ]
