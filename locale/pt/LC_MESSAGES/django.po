@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-10 14:39+0000\n"
+"POT-Creation-Date: 2026-09-14 13:44+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,101 +18,140 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#: citsci-api/settings.py:163
 msgid "Spanish"
 msgstr "Espanhol"
 
+#: citsci-api/settings.py:164
 msgid "English"
 msgstr "Inglês"
 
+#: citsci-api/settings.py:165
 msgid "French"
 msgstr "Francês"
 
+#: citsci-api/settings.py:166
 msgid "Portuguese"
 msgstr "Português"
 
+#: citsci-api/settings.py:167
 msgid "Italian"
 msgstr "Italiano"
 
+#: citsci-api/settings.py:168
 msgid "German"
 msgstr "Alemão"
 
-msgid "choices solo aplica cuando field_type=choice o field_type=mchoice."
-msgstr ""
+#: citsci-api/settings.py:169
+msgid "Dutch"
+msgstr "Holandês"
 
+#: markers/api/serializers.py:208
+msgid "choices solo aplica cuando field_type=choice o field_type=mchoice."
+msgstr "choices só se aplica quando field_type=choice ou field_type=mchoice."
+
+#: markers/api/views.py:58
 msgid "No tienes permisos de administración en este proyecto."
 msgstr "Você não tem permissões de administração neste projeto."
 
+#: markers/api/views.py:63
 msgid "Solo el creador del proyecto puede gestionar estos campos."
 msgstr "Somente o criador do projeto pode gerenciar esses campos."
 
+#: markers/api/views.py:229
 msgid "Este proyecto ha finalizado y ya no acepta observaciones."
-msgstr ""
+msgstr "Este projeto foi finalizado e já não aceita observações."
 
+#: markers/api/views.py:240
 msgid "Debes ser miembro del proyecto para enviar observaciones."
 msgstr "Você deve ser membro do projeto para enviar observações."
 
+#: markers/api/views.py:432 markers/api/views.py:454 markers/api/views.py:720
 msgid "Debes ser miembro del proyecto para acceder a los datos."
 msgstr "Você deve ser membro do projeto para acessar os dados."
 
+#: markers/api/views.py:435 markers/api/views.py:457
 msgid ""
 "Este proyecto usa localización aproximada. Las coordenadas exactas no están "
 "disponibles."
 msgstr ""
+"Este projeto usa localização aproximada. As coordenadas exatas não estão "
+"disponíveis."
 
+#: markers/api/views.py:788
 msgid ""
 "Solo el creador y los administradores pueden descargar datos de un proyecto "
 "privado."
 msgstr ""
+"Somente o criador e os administradores podem baixar dados de um projeto "
+"privado."
 
+#: markers/api/views.py:791
 msgid "Solo el creador y los administradores pueden descargar datos privados."
 msgstr "Somente o criador e os administradores podem baixar dados privados."
 
+#: markers/api/views.py:794
 msgid ""
 "Solo el creador y los administradores pueden descargar datos de un proyecto "
 "con posición difusa."
 msgstr ""
+"Somente o criador e os administradores podem baixar dados de um projeto com "
+"posição difusa."
 
+#: markers/api/views.py:1430 markers/api/views.py:1477
 msgid "Falta la cabecera X-Anonymous-Id o no es un UUID válido."
-msgstr ""
+msgstr "Falta o cabeçalho X-Anonymous-Id ou ele não é um UUID válido."
 
+#: markers/api/views.py:1438
 #, python-format
 msgid "Cada archivo debe ocupar menos de %(mb)s MB."
-msgstr ""
+msgstr "Cada arquivo deve ocupar menos de %(mb)s MB."
 
+#: markers/api/views.py:1445
 #, python-format
 msgid "Máximo %(n)s imágenes por observación anónima."
-msgstr ""
+msgstr "Máximo de %(n)s imagens por observação anônima."
 
+#: markers/tasks.py:65 templates/email/observation_admin_notification.html:8
 msgid "Nueva observación recibida"
 msgstr "Nova observação recebida"
 
+#: organizations/api/serializers.py:132
 msgid "Debe especificar al menos un país si la organización no es global."
 msgstr ""
 "Você deve especificar pelo menos um país se a organização não for global."
 
+#: organizations/api/views.py:108 organizations/api/views.py:292
 msgid "Organization not found"
 msgstr "Organização não encontrada"
 
+#: organizations/api/views.py:112
 msgid "Only organization creator or administrators can send invitations"
 msgstr ""
 "Somente o criador ou administradores da organização podem enviar convites"
 
+#: organizations/api/views.py:123 project/api/views.py:422
 msgid "User is already the creator"
 msgstr "O utilizador já é o criador"
 
+#: organizations/api/views.py:125 project/api/views.py:424
 msgid "User is already an administrator"
 msgstr "O utilizador já é administrador"
 
+#: organizations/api/views.py:127
 msgid "User is already a member"
 msgstr "O utilizador já é membro"
 
+#: organizations/api/views.py:139 project/api/views.py:436
 msgid "A pending invitation already exists for this email"
 msgstr "Já existe um convite pendente para este email"
 
+#: organizations/api/views.py:158 project/api/views.py:454
 #, python-format
 msgid "Invitation to %(name)s"
 msgstr "Convite para %(name)s"
 
+#: organizations/api/views.py:160
 #, python-format
 msgid ""
 "You have been invited to join %(org)s as %(role)s. Download the app to "
@@ -121,47 +160,65 @@ msgstr ""
 "Você foi convidado para entrar em %(org)s como %(role)s. Baixe o aplicativo "
 "para aceitar o convite."
 
+#: organizations/api/views.py:194 organizations/api/views.py:233
+#: organizations/api/views.py:275 project/api/views.py:495
+#: project/api/views.py:528 project/api/views.py:569
 msgid "Invitation not found"
 msgstr "Convite não encontrado"
 
+#: organizations/api/views.py:198 organizations/api/views.py:237
+#: project/api/views.py:499 project/api/views.py:532
 msgid "This invitation is not for you"
 msgstr "Este convite não é para você"
 
+#: organizations/api/views.py:208 project/api/views.py:509
 msgid "Invitation has expired"
 msgstr "O convite expirou"
 
+#: organizations/api/views.py:247 project/api/views.py:541
 msgid "Invitation rejected"
 msgstr "Convite recusado"
 
+#: organizations/api/views.py:262
 msgid "Only organization creator or administrators can view invitations"
 msgstr "Somente o criador ou administradores podem ver os convites"
 
+#: organizations/api/views.py:279
 msgid "Only organization creator or administrators can cancel invitations"
 msgstr "Somente o criador ou administradores podem cancelar os convites"
 
+#: project/api/serializers.py:137
 msgid "El nombre del proyecto es obligatorio."
 msgstr "O nome do projeto é obrigatório."
 
+#: project/api/serializers.py:141
 msgid "La descripción del proyecto es obligatoria."
 msgstr "A descrição do projeto é obrigatória."
 
+#: project/api/serializers.py:144
 msgid "La imagen de portada es obligatoria."
 msgstr "A imagem de capa é obrigatória."
 
+#: project/api/serializers.py:148
 msgid "El formulario de campo es obligatorio."
 msgstr "O formulário de campo é obrigatório."
 
+#: project/api/serializers.py:150
 msgid "El formulario debe tener al menos una pregunta."
 msgstr "O formulário deve ter pelo menos uma pergunta."
 
+#: project/api/serializers.py:167
 msgid ""
 "No se pueden eliminar preguntas porque el formulario ya tiene observaciones."
 msgstr ""
+"Não é possível eliminar perguntas porque o formulário já tem observações."
 
+#: project/api/serializers.py:186
 #, python-format
 msgid "La pregunta %(id)s ya tiene respuestas: no se puede cambiar %(fields)s."
-msgstr ""
+msgstr "A pergunta %(id)s já tem respostas: não é possível alterar %(fields)s."
 
+#: project/api/serializers.py:199
 #, python-format
 msgid ""
 "El proyecto necesita más de 10 observaciones para ser publicado. Actualmente "
@@ -170,55 +227,71 @@ msgstr ""
 "O projeto precisa de mais de 10 observações para ser publicado. Atualmente "
 "tem %(count)s."
 
+#: project/api/serializers.py:203
 msgid "Debe proporcionar una contraseña si el proyecto es privado."
 msgstr "Você deve fornecer uma senha se o projeto for privado."
 
+#: project/api/serializers.py:209
 msgid "La contribución anónima no está disponible en proyectos privados."
-msgstr ""
+msgstr "A contribuição anônima não está disponível em projetos privados."
 
+#: project/api/serializers.py:216
 #, python-format
 msgid ""
 "Códigos de país no válidos: %(codes)s. Se esperan códigos ISO 3166-1 alpha-2."
 msgstr ""
+"Códigos de país inválidos: %(codes)s. Esperam-se códigos ISO 3166-1 alpha-2."
 
+#: project/api/serializers.py:332 project/api/serializers.py:379
 msgid "Datos JSON inválidos."
-msgstr ""
+msgstr "Dados JSON inválidos."
 
-#, fuzzy
-#| msgid "Solo el creador del proyecto puede gestionar estos campos."
+#: project/api/serializers.py:364
 msgid "Solo el creador puede cambiar el campo 'creator'."
-msgstr "Somente o criador do projeto pode gerenciar esses campos."
+msgstr "Somente o criador pode alterar o campo 'creator'."
 
+#: project/api/views.py:202 project/api/views.py:221
 msgid "Proyecto no encontrado."
-msgstr ""
+msgstr "Projeto não encontrado."
 
+#: project/api/views.py:206
 msgid "Contraseña no proporcionada."
-msgstr ""
+msgstr "Senha não fornecida."
 
+#: project/api/views.py:213
 msgid "Contraseña incorrecta."
-msgstr ""
+msgstr "Senha incorreta."
 
+#: project/api/views.py:357 project/api/views.py:384 project/api/views.py:408
+#: project/api/views.py:586
 msgid "Proyecto no encontrado"
-msgstr ""
+msgstr "Projeto não encontrado"
 
+#: project/api/views.py:360
 msgid "Solo el creador del proyecto puede modificar este mensaje."
 msgstr "Somente o criador do projeto pode modificar esta mensagem."
 
+#: project/api/views.py:371
 msgid "Se requiere email_intro o email_subject."
 msgstr "email_intro ou email_subject é obrigatório."
 
+#: project/api/views.py:387
 msgid "Only the project creator can remove administrators."
 msgstr "Somente o criador do projeto pode remover administradores."
 
+#: project/api/views.py:392
 msgid "User not found"
 msgstr "Utilizador não encontrado"
 
+#: project/api/views.py:395
 msgid "User is not an administrator of this project."
-msgstr ""
+msgstr "O utilizador não é administrador deste projeto."
 
+#: project/api/views.py:412
 msgid "Only project creator or administrators can send invitations"
 msgstr "Somente o criador ou administradores do projeto podem enviar convites"
 
+#: project/api/views.py:456
 #, python-format
 msgid ""
 "You have been invited to join %(project)s as an administrator. Download the "
@@ -227,135 +300,236 @@ msgstr ""
 "Você foi convidado para entrar em %(project)s como administrador. Baixe o "
 "aplicativo para aceitar o convite."
 
+#: project/api/views.py:503 project/api/views.py:536
 #, python-format
 msgid "La invitación ya fue %(status)s"
-msgstr ""
+msgstr "O convite já foi %(status)s"
 
+#: project/api/views.py:516
 msgid "Invitación aceptada correctamente"
-msgstr ""
+msgstr "Convite aceito corretamente"
 
+#: project/api/views.py:557
 msgid "Only project creator or administrators can view invitations"
 msgstr "Somente o criador ou administradores do projeto podem ver os convites"
 
+#: project/api/views.py:573
 msgid "Only project creator or administrators can cancel invitations"
 msgstr ""
 "Somente o criador ou administradores do projeto podem cancelar os convites"
 
+#: project/api/views.py:589
 msgid "Only project creator or administrators can export this project"
 msgstr "Somente o criador ou administradores podem exportar este projeto"
 
-#, fuzzy
-#| msgid ""
-#| "Solo el creador y los administradores pueden descargar datos privados."
+#: stats/api/views.py:238
 msgid ""
 "Solo el creador y los administradores del proyecto ven sus estadísticas."
-msgstr "Somente o criador e os administradores podem baixar dados privados."
+msgstr ""
+"Somente o criador e os administradores do projeto veem suas estatísticas."
 
+#: stats/digest.py:27
 msgid "quincenal"
-msgstr ""
+msgstr "quinzenal"
 
+#: stats/digest.py:28
 msgid "mensual"
-msgstr ""
+msgstr "mensal"
 
+#: stats/digest.py:97
 msgid "observaciones nuevas"
-msgstr ""
+msgstr "novas observações"
 
+#: stats/digest.py:98
 msgid "usuarios nuevos"
-msgstr ""
+msgstr "novos utilizadores"
 
+#: stats/digest.py:99
 msgid "proyectos nuevos"
-msgstr ""
+msgstr "novos projetos"
 
+#: stats/digest.py:100
 msgid "proyectos publicados"
-msgstr ""
+msgstr "projetos publicados"
 
+#: stats/digest.py:113
 msgid "Observaciones"
-msgstr ""
+msgstr "Observações"
 
+#: stats/digest.py:114
 msgid "Usuarios nuevos"
-msgstr ""
+msgstr "Novos utilizadores"
 
+#: stats/digest.py:115
 msgid "Proyectos creados"
-msgstr ""
+msgstr "Projetos criados"
 
+#: templates/account/email/email_confirmation_signup_message.html:4
 msgid "Bienvenido a Geonity"
-msgstr ""
+msgstr "Bem-vindo ao Geonity"
 
+#: templates/account/email/email_confirmation_signup_message.html:8
 #, python-format
 msgid "¡Bienvenid@ %(username)s!"
-msgstr ""
+msgstr "Bem-vindo(a) %(username)s!"
 
+#: templates/account/email/email_confirmation_signup_message.html:11
 msgid "Nos alegra tenerte aquí."
-msgstr ""
+msgstr "Estamos contentes por tê-lo aqui."
 
+#: templates/account/email/email_confirmation_signup_message.html:14
 msgid ""
 "¡Enhorabuena, acabas de unirte a Geonity! Estamos emocionados de tenerte "
 "como parte de nuestra comunidad y esperamos que disfrutes de la experiencia "
 "recopilando datos en tiempo real."
 msgstr ""
+"Parabéns, você acaba de entrar no Geonity! Estamos entusiasmados por tê-lo "
+"como parte da nossa comunidade e esperamos que aproveite a experiência de "
+"recolher dados em tempo real."
 
+#: templates/account/email/email_confirmation_signup_message.html:17
 msgid ""
 "Para comenzar a utilizar tu cuenta, haz clic en el botón de abajo para "
 "activarla."
-msgstr ""
+msgstr "Para começar a usar a sua conta, clique no botão abaixo para ativá-la."
 
+#: templates/account/email/email_confirmation_signup_message.html:24
 msgid "Activar cuenta"
-msgstr ""
+msgstr "Ativar conta"
 
+#: templates/account/email/password_reset_key_message.html:4
+#: templates/account/email/password_reset_key_message.html:21
 msgid "Restablecer contraseña"
-msgstr ""
+msgstr "Redefinir senha"
 
+#: templates/account/email/password_reset_key_message.html:8
 #, python-format
 msgid "Hola, %(username)s"
-msgstr ""
+msgstr "Olá, %(username)s"
 
+#: templates/account/email/password_reset_key_message.html:11
 msgid "Has solicitado restablecer tu contraseña para acceder a Geonity."
-msgstr ""
+msgstr "Você solicitou a redefinição da sua senha para aceder ao Geonity."
 
+#: templates/account/email/password_reset_key_message.html:14
 msgid "Si no has sido tú, puedes ignorar este mensaje de forma segura."
-msgstr ""
+msgstr "Se não foi você, pode ignorar esta mensagem com segurança."
 
+#: templates/email/announcement_stats.html:8
+msgid "Ya puedes ver las estadísticas de tu proyecto"
+msgstr "Já pode ver as estatísticas do seu projeto"
+
+#: templates/email/announcement_stats.html:12
+#| msgid ""
+#| "Hemos añadido una sección de estadísticas a los proyectos. Entra en tu "
+#| "proyecto y verás un botón <strong style=\\"
+msgid ""
+"Hemos añadido una sección de estadísticas a los proyectos. Entra en tu "
+"proyecto y verás un botón <strong style='color:#111827;'>Estadísticas</"
+"strong>."
+msgstr "Adicionámos uma secção de estatísticas aos projetos. Entre no seu projeto e verá um botão <strong style='color:#111827;'>Estatísticas</strong>."
+
+#: templates/email/announcement_stats.html:18
+msgid "Qué vas a encontrar"
+msgstr "O que vai encontrar"
+
+#: templates/email/announcement_stats.html:19
+msgid "Cuántas observaciones recibe tu proyecto y cómo evoluciona mes a mes."
+msgstr "Quantas observações o seu projeto recebe e como evolui mês a mês."
+
+#: templates/email/announcement_stats.html:20
+msgid ""
+"Cuánta gente participa, y cuántos contribuyen por primera vez frente a los "
+"que repiten."
+msgstr ""
+"Quantas pessoas participam e quantas contribuem pela primeira vez face às "
+"que repetem."
+
+#: templates/email/announcement_stats.html:21
+msgid ""
+"Desde dónde llegan las observaciones: móvil, web o el QR de contribución "
+"anónima."
+msgstr ""
+"De onde chegam as observações: telemóvel, web ou o QR de contribuição "
+"anônima."
+
+#: templates/email/announcement_stats.html:27
+msgid ""
+"Además, si tu proyecto tiene actividad recibirás un resumen mensual por "
+"correo. Puedes desactivarlo cuando quieras desde los ajustes del proyecto."
+msgstr ""
+"Além disso, se o seu projeto tiver atividade receberá um resumo mensal por "
+"email. Pode desativá-lo quando quiser nas definições do projeto."
+
+#: templates/email/announcement_stats.html:32
+msgid "Ver mis proyectos"
+msgstr "Ver os meus projetos"
+
+#: templates/email/announcement_stats.html:37
+msgid "Este es un aviso puntual, no una suscripción."
+msgstr "Este é um aviso pontual, não uma subscrição."
+
+#: templates/email/announcement_stats.html:43
+#, python-format
+msgid "¿Dudas? Responde a este correo: llega a %(contact_email)s."
+msgstr "Dúvidas? Responda a este email: chega a %(contact_email)s."
+
+#: templates/email/base.html:31
 msgid "Este es un email automático, por favor no responder."
-msgstr ""
+msgstr "Este é um email automático, por favor não responder."
 
+#: templates/email/observation_admin.html:9
 #, python-format
 msgid "Proyecto: %(name)s"
-msgstr ""
+msgstr "Projeto: %(name)s"
 
+#: templates/email/observation_admin_notification.html:4
+#: templates/email/post_observation.html:4
 #, python-format
 msgid "[%(name)s] Nueva observación recibida"
 msgstr "[%(name)s] Nova observação recebida"
 
+#: templates/email/observation_admin_notification.html:11
+#: templates/email/post_observation.html:11
 #, python-format
 msgid "Proyecto: <strong style=\"color:#111827;\">%(name)s</strong>"
-msgstr ""
+msgstr "Projeto: <strong style=\"color:#111827;\">%(name)s</strong>"
 
+#: templates/email/observation_admin_notification.html:18
 #, python-format
 msgid "Observación <strong>#%(id)s</strong>"
-msgstr ""
+msgstr "Observação <strong>#%(id)s</strong>"
 
+#: templates/email/observation_admin_notification.html:21
 #, python-format
 msgid "Fecha: %(ts)s"
-msgstr ""
+msgstr "Data: %(ts)s"
 
+#: templates/email/observation_admin_notification.html:24
 #, python-format
 msgid "Coordenadas: %(lat)s, %(lng)s"
-msgstr ""
+msgstr "Coordenadas: %(lat)s, %(lng)s"
 
+#: templates/email/observation_admin_notification.html:28
 #, python-format
 msgid "Dirección: %(addr)s"
-msgstr ""
+msgstr "Endereço: %(addr)s"
 
+#: templates/email/observation_admin_notification.html:33
 msgid "Contribución anónima"
-msgstr ""
+msgstr "Contribuição anônima"
 
+#: templates/email/organization_invitation.html:4
+#: templates/email/project_invitation.html:4
 #, python-format
 msgid "Invitación a %(name)s"
-msgstr ""
+msgstr "Convite para %(name)s"
 
+#: templates/email/organization_invitation.html:8
 msgid "Te han invitado a una organización"
-msgstr ""
+msgstr "Você foi convidado para uma organização"
 
+#: templates/email/organization_invitation.html:11
 #, python-format
 msgid ""
 "\n"
@@ -363,16 +537,26 @@ msgid ""
 "<strong>%(name)s</strong> como %(role)s.\n"
 "    "
 msgstr ""
+"\n"
+"      <strong>%(inviter)s</strong> convidou-o para entrar em "
+"<strong>%(name)s</strong> como %(role)s.\n"
+"    "
 
+#: templates/email/organization_invitation.html:20
+#: templates/email/platform_notification.html:24
 msgid "Organización"
-msgstr ""
+msgstr "Organização"
 
+#: templates/email/organization_invitation.html:23
 msgid "Rol: Administrador"
-msgstr ""
+msgstr "Função: Administrador"
 
+#: templates/email/organization_invitation.html:23
 msgid "Rol: Miembro"
-msgstr ""
+msgstr "Função: Membro"
 
+#: templates/email/organization_invitation.html:30
+#: templates/email/project_invitation.html:27
 msgid ""
 "Descarga la app o visita <a href=\"https://geonity.ibercivis.es\" "
 "style=\"color:#4f6ef7;text-decoration:none;\">Geonity</a> para aceptar o "
@@ -382,189 +566,258 @@ msgstr ""
 "style=\"color:#4f6ef7;text-decoration:none;\">Geonity</a> para aceitar ou "
 "recusar o convite."
 
+#: templates/email/organization_invitation.html:34
+#: templates/email/project_invitation.html:31
 msgid "Esta invitación expirará en 30 días."
-msgstr ""
+msgstr "Este convite expirará em 30 dias."
 
+#: templates/email/platform_digest.html:8
 #, python-format
 msgid "Resumen %(period_label)s"
-msgstr ""
+msgstr "Resumo (%(period_label)s)"
 
+#: templates/email/platform_digest.html:11
 #, python-format
 msgid "Del %(since)s al %(until)s (%(days)s días)"
-msgstr ""
+msgstr "De %(since)s a %(until)s (%(days)s dias)"
 
+#: templates/email/platform_digest.html:23
+#: templates/email/project_digest.html:20
 msgid "vs. periodo anterior"
-msgstr ""
+msgstr "vs. período anterior"
 
+#: templates/email/platform_digest.html:26
 msgid "sin datos del periodo anterior"
-msgstr ""
+msgstr "sem dados do período anterior"
 
+#: templates/email/platform_digest.html:34
 msgid "Evolución"
-msgstr ""
+msgstr "Evolução"
 
+#: templates/email/platform_digest.html:35
 #, python-format
 msgid "Últimos %(chart_months)s meses"
-msgstr ""
+msgstr "Últimos %(chart_months)s meses"
 
+#: templates/email/platform_digest.html:58
 msgid "Quién contribuye"
-msgstr ""
+msgstr "Quem contribui"
 
+#: templates/email/platform_digest.html:60
 msgid "Contribuidores distintos en el periodo"
-msgstr ""
+msgstr "Contribuidores distintos no período"
 
+#: templates/email/platform_digest.html:62
 msgid "con cuenta"
-msgstr ""
+msgstr "com conta"
 
+#: templates/email/platform_digest.html:64
 msgid "anónimos (QR)"
-msgstr ""
+msgstr "anônimos (QR)"
 
+#: templates/email/platform_digest.html:66
+msgid "que contribuyen por primera vez"
+msgstr "que contribuem pela primeira vez"
+
+#: templates/email/platform_digest.html:68
 msgid "Observaciones desde móvil"
-msgstr ""
+msgstr "Observações a partir do telemóvel"
 
+#: templates/email/platform_digest.html:70
 msgid "desde web"
-msgstr ""
+msgstr "a partir da web"
 
+#: templates/email/platform_digest.html:73
 msgid "sin plataforma registrada"
-msgstr ""
+msgstr "sem plataforma registada"
 
+#: templates/email/platform_digest.html:78
 msgid "Estado de la plataforma"
-msgstr ""
+msgstr "Estado da plataforma"
 
+#: templates/email/platform_digest.html:80
 #, python-format
 msgid ""
 "%(total_projects)s proyectos, de los que %(total_published)s están "
 "publicados y %(active_30d)s han recibido observaciones en los últimos 30 "
 "días."
 msgstr ""
+"%(total_projects)s projetos, dos quais %(total_published)s estão publicados "
+"e %(active_30d)s receberam observações nos últimos 30 dias."
 
+#: templates/email/platform_digest.html:81
 #, python-format
 msgid ""
 "%(total_observations)s observaciones en total (%(anonymous_observations)s "
 "anónimas) y %(total_users)s usuarios registrados."
 msgstr ""
+"%(total_observations)s observações no total (%(anonymous_observations)s "
+"anônimas) e %(total_users)s utilizadores registados."
 
+#: templates/email/platform_digest.html:85
 msgid "Publicados sin actividad"
-msgstr ""
+msgstr "Publicados sem atividade"
 
+#: templates/email/platform_digest.html:86
 msgid "Más de 90 días sin recibir observaciones"
-msgstr ""
+msgstr "Mais de 90 dias sem receber observações"
 
+#: templates/email/platform_digest.html:92
 #, python-format
 msgid "%(d)s días"
-msgstr ""
+msgstr "%(d)s dias"
 
+#: templates/email/platform_digest.html:92
 msgid "ninguna aún"
-msgstr ""
+msgstr "ainda nenhuma"
 
+#: templates/email/platform_digest.html:100
 msgid "Proyectos con más actividad"
-msgstr ""
+msgstr "Projetos com mais atividade"
 
+#: templates/email/platform_digest.html:112
 msgid "Abrir Geonity"
-msgstr ""
+msgstr "Abrir o Geonity"
 
+#: templates/email/platform_notification.html:11
 #, python-format
 msgid "Aviso de plataforma: %(event_label)s."
-msgstr ""
+msgstr "Aviso da plataforma: %(event_label)s."
 
+#: templates/email/platform_notification.html:19
+#: templates/email/project_invitation.html:20
 msgid "Proyecto"
-msgstr ""
+msgstr "Projeto"
 
+#: templates/email/platform_notification.html:29
 msgid "Creado por"
-msgstr ""
+msgstr "Criado por"
 
+#: templates/email/platform_notification.html:34
 msgid "Fecha de creación"
-msgstr ""
+msgstr "Data de criação"
 
+#: templates/email/platform_notification.html:39
 msgid "Primera publicación"
-msgstr ""
+msgstr "Primeira publicação"
 
+#: templates/email/platform_notification.html:44
 msgid "observaciones"
-msgstr ""
+msgstr "observações"
 
+#: templates/email/platform_notification.html:53
 msgid "Abrir en Geonity"
-msgstr ""
+msgstr "Abrir no Geonity"
 
+#: templates/email/post_observation.html:8
 msgid "Nueva observación"
-msgstr ""
+msgstr "Nova observação"
 
+#: templates/email/project_digest.html:9
 #, python-format
 msgid "Resumen %(period_label)s · del %(since)s al %(until)s"
-msgstr ""
+msgstr "Resumo (%(period_label)s) · de %(since)s a %(until)s"
 
+#: templates/email/project_digest.html:16
 msgid "observaciones este periodo"
-msgstr ""
+msgstr "observações neste período"
 
+#: templates/email/project_digest.html:27
 msgid "personas contribuyendo"
-msgstr ""
+msgstr "pessoas a contribuir"
 
+#: templates/email/project_digest.html:29
 #, python-format
 msgid "%(n)s nuevas · %(r)s repiten"
-msgstr ""
+msgstr "%(n)s novas · %(r)s repetem"
 
+#: templates/email/project_digest.html:35
 msgid "Observaciones por mes"
-msgstr ""
+msgstr "Observações por mês"
 
+#: templates/email/project_digest.html:55
 msgid "Desde móvil"
-msgstr ""
+msgstr "A partir do telemóvel"
 
+#: templates/email/project_digest.html:57
 msgid "Desde web"
-msgstr ""
+msgstr "A partir da web"
 
+#: templates/email/project_digest.html:60
 msgid "Anónimas por QR"
-msgstr ""
+msgstr "Anônimas por QR"
 
+#: templates/email/project_digest.html:63
 msgid "Total histórico del proyecto"
-msgstr ""
+msgstr "Total histórico do projeto"
 
-#, fuzzy
-#| msgid "Nueva observación recibida"
+#: templates/email/project_digest.html:66
 msgid "Primera observación"
-msgstr "Nova observação recebida"
+msgstr "Primeira observação"
 
+#: templates/email/project_digest.html:72
 msgid "Ver el proyecto"
-msgstr ""
+msgstr "Ver o projeto"
 
+#: templates/email/project_inactive.html:9
 #, python-format
 msgid ""
 "Este proyecto no ha recibido observaciones en los últimos %(days)s días."
-msgstr ""
+msgstr "Este projeto não recebeu observações nos últimos %(days)s dias."
 
+#: templates/email/project_inactive.html:10
 #, python-format
 msgid "La última llegó el %(last_observation)s."
-msgstr ""
+msgstr "A última chegou a %(last_observation)s."
 
+#: templates/email/project_inactive.html:10
 msgid "Todavía no ha recibido ninguna."
-msgstr ""
+msgstr "Ainda não recebeu nenhuma."
 
+#: templates/email/project_inactive.html:16
 msgid "¿Te echamos una mano?"
-msgstr ""
+msgstr "Damos-lhe uma ajuda?"
 
+#: templates/email/project_inactive.html:18
 msgid ""
 "Responde a este correo y lo vemos contigo: difusión, revisar el formulario, "
 "un QR para recoger datos sin necesidad de cuenta, o lo que haga falta."
 msgstr ""
+"Responda a este email e vemos isso consigo: divulgação, rever o formulário, "
+"um QR para recolher dados sem necessidade de conta, ou o que for preciso."
 
+#: templates/email/project_inactive.html:21
 msgid ""
 "Y si el proyecto ya ha cumplido su ciclo, puedes marcarlo como terminado "
 "desde su página de edición. Los datos se conservan y deja de aparecer como "
 "activo."
 msgstr ""
+"E se o projeto já cumpriu o seu ciclo, pode marcá-lo como terminado a partir "
+"da sua página de edição. Os dados são conservados e deixa de aparecer como "
+"ativo."
 
+#: templates/email/project_inactive.html:28
 msgid "Ir al proyecto"
-msgstr ""
+msgstr "Ir para o projeto"
 
+#: templates/email/project_inactive.html:32
 msgid ""
 "Si prefieres no recibir este resumen, puedes desactivarlo en los ajustes del "
 "proyecto."
 msgstr ""
+"Se preferir não receber este resumo, pode desativá-lo nas definições do "
+"projeto."
 
+#: templates/email/project_inactive.html:38
 #, python-format
 msgid "Puedes responder a este correo: llega a %(contact_email)s."
-msgstr ""
+msgstr "Pode responder a este email: chega a %(contact_email)s."
 
+#: templates/email/project_invitation.html:8
 msgid "Te han invitado a un proyecto"
-msgstr ""
+msgstr "Você foi convidado para um projeto"
 
+#: templates/email/project_invitation.html:11
 #, python-format
 msgid ""
 "\n"
@@ -572,10 +825,7 @@ msgid ""
 "<strong>%(name)s</strong> como administrador.\n"
 "    "
 msgstr ""
-
-#~ msgid "Debe especificar al menos un país si el proyecto no es global."
-#~ msgstr ""
-#~ "Você deve especificar pelo menos um país se o projeto não for global."
-
-#~ msgid "Project not found"
-#~ msgstr "Projeto não encontrado"
+"\n"
+"      <strong>%(inviter)s</strong> convidou-o para entrar no projeto "
+"<strong>%(name)s</strong> como administrador.\n"
+"    "
