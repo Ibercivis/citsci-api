@@ -38,6 +38,7 @@ TOPIC_LANGUAGES = [
     ('pt', 'Português'),
     ('it', 'Italiano'),
     ('de', 'Deutsch'),
+    ('nl', 'Nederlands'),
 ]
 
 
@@ -79,7 +80,7 @@ class TopicAdminForm(forms.ModelForm):
 @admin.register(Topic)
 class TopicAdmin(admin.ModelAdmin):
     form = TopicAdminForm
-    list_display = ['id', 'topic_es', 'topic_en', 'topic_fr', 'topic_pt', 'topic_it', 'topic_de']
+    list_display = ['id', 'topic_es', 'topic_en', 'topic_fr', 'topic_pt', 'topic_it', 'topic_de', 'topic_nl']
     search_fields = ['id']
 
     def _lang(self, obj, code):
@@ -93,6 +94,7 @@ class TopicAdmin(admin.ModelAdmin):
     def topic_pt(self, obj): return self._lang(obj, 'pt')
     def topic_it(self, obj): return self._lang(obj, 'it')
     def topic_de(self, obj): return self._lang(obj, 'de')
+    def topic_nl(self, obj): return self._lang(obj, 'nl')
 
     topic_es.short_description = 'Español'
     topic_en.short_description = 'English'
@@ -100,6 +102,7 @@ class TopicAdmin(admin.ModelAdmin):
     topic_pt.short_description = 'Português'
     topic_it.short_description = 'Italiano'
     topic_de.short_description = 'Deutsch'
+    topic_nl.short_description = 'Nederlands'
 
 
 admin.site.register(ProjectCover)

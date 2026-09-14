@@ -1,0 +1,846 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-14 13:44+0000\n"
+"PO-Revision-Date: 2026-09-14 13:30+0000\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: Dutch\n"
+"Language: nl\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: citsci-api/settings.py:163
+msgid "Spanish"
+msgstr "Spaans"
+
+#: citsci-api/settings.py:164
+msgid "English"
+msgstr "Engels"
+
+#: citsci-api/settings.py:165
+msgid "French"
+msgstr "Frans"
+
+#: citsci-api/settings.py:166
+msgid "Portuguese"
+msgstr "Portugees"
+
+#: citsci-api/settings.py:167
+msgid "Italian"
+msgstr "Italiaans"
+
+#: citsci-api/settings.py:168
+msgid "German"
+msgstr "Duits"
+
+#: citsci-api/settings.py:169
+msgid "Dutch"
+msgstr "Nederlands"
+
+#: markers/api/serializers.py:208
+msgid "choices solo aplica cuando field_type=choice o field_type=mchoice."
+msgstr "choices geldt alleen als field_type=choice of field_type=mchoice."
+
+#: markers/api/views.py:58
+msgid "No tienes permisos de administración en este proyecto."
+msgstr "Je hebt geen beheerdersrechten in dit project."
+
+#: markers/api/views.py:63
+msgid "Solo el creador del proyecto puede gestionar estos campos."
+msgstr "Alleen de maker van het project kan deze velden beheren."
+
+#: markers/api/views.py:229
+msgid "Este proyecto ha finalizado y ya no acepta observaciones."
+msgstr "Dit project is afgerond en accepteert geen waarnemingen meer."
+
+#: markers/api/views.py:240
+msgid "Debes ser miembro del proyecto para enviar observaciones."
+msgstr "Je moet lid van het project zijn om waarnemingen te versturen."
+
+#: markers/api/views.py:432 markers/api/views.py:454 markers/api/views.py:720
+msgid "Debes ser miembro del proyecto para acceder a los datos."
+msgstr ""
+"Je moet lid van het project zijn om toegang te krijgen tot de gegevens."
+
+#: markers/api/views.py:435 markers/api/views.py:457
+msgid ""
+"Este proyecto usa localización aproximada. Las coordenadas exactas no están "
+"disponibles."
+msgstr ""
+"Dit project gebruikt een geschatte locatie. De exacte coördinaten zijn niet "
+"beschikbaar."
+
+#: markers/api/views.py:788
+msgid ""
+"Solo el creador y los administradores pueden descargar datos de un proyecto "
+"privado."
+msgstr ""
+"Alleen de maker en de beheerders kunnen gegevens van een privéproject "
+"downloaden."
+
+#: markers/api/views.py:791
+msgid "Solo el creador y los administradores pueden descargar datos privados."
+msgstr "Alleen de maker en de beheerders kunnen privégegevens downloaden."
+
+#: markers/api/views.py:794
+msgid ""
+"Solo el creador y los administradores pueden descargar datos de un proyecto "
+"con posición difusa."
+msgstr ""
+"Alleen de maker en de beheerders kunnen gegevens downloaden van een project "
+"met een vervaagde locatie."
+
+#: markers/api/views.py:1430 markers/api/views.py:1477
+msgid "Falta la cabecera X-Anonymous-Id o no es un UUID válido."
+msgstr "De header X-Anonymous-Id ontbreekt of is geen geldige UUID."
+
+#: markers/api/views.py:1438
+#, python-format
+msgid "Cada archivo debe ocupar menos de %(mb)s MB."
+msgstr "Elk bestand moet kleiner zijn dan %(mb)s MB."
+
+#: markers/api/views.py:1445
+#, python-format
+msgid "Máximo %(n)s imágenes por observación anónima."
+msgstr "Maximaal %(n)s afbeeldingen per anonieme waarneming."
+
+#: markers/tasks.py:65 templates/email/observation_admin_notification.html:8
+msgid "Nueva observación recibida"
+msgstr "Nieuwe waarneming ontvangen"
+
+#: organizations/api/serializers.py:132
+msgid "Debe especificar al menos un país si la organización no es global."
+msgstr ""
+"Je moet minstens één land opgeven als de organisatie niet wereldwijd is."
+
+#: organizations/api/views.py:108 organizations/api/views.py:292
+msgid "Organization not found"
+msgstr "Organisatie niet gevonden"
+
+#: organizations/api/views.py:112
+msgid "Only organization creator or administrators can send invitations"
+msgstr ""
+"Alleen de maker of beheerders van de organisatie kunnen uitnodigingen "
+"versturen"
+
+#: organizations/api/views.py:123 project/api/views.py:422
+msgid "User is already the creator"
+msgstr "Gebruiker is al de maker"
+
+#: organizations/api/views.py:125 project/api/views.py:424
+msgid "User is already an administrator"
+msgstr "Gebruiker is al beheerder"
+
+#: organizations/api/views.py:127
+msgid "User is already a member"
+msgstr "Gebruiker is al lid"
+
+#: organizations/api/views.py:139 project/api/views.py:436
+msgid "A pending invitation already exists for this email"
+msgstr "Er bestaat al een openstaande uitnodiging voor dit e-mailadres"
+
+#: organizations/api/views.py:158 project/api/views.py:454
+#, python-format
+msgid "Invitation to %(name)s"
+msgstr "Uitnodiging voor %(name)s"
+
+#: organizations/api/views.py:160
+#, python-format
+msgid ""
+"You have been invited to join %(org)s as %(role)s. Download the app to "
+"accept the invitation."
+msgstr ""
+"Je bent uitgenodigd om lid te worden van %(org)s als %(role)s. Download de "
+"app om de uitnodiging te accepteren."
+
+#: organizations/api/views.py:194 organizations/api/views.py:233
+#: organizations/api/views.py:275 project/api/views.py:495
+#: project/api/views.py:528 project/api/views.py:569
+msgid "Invitation not found"
+msgstr "Uitnodiging niet gevonden"
+
+#: organizations/api/views.py:198 organizations/api/views.py:237
+#: project/api/views.py:499 project/api/views.py:532
+msgid "This invitation is not for you"
+msgstr "Deze uitnodiging is niet voor jou"
+
+#: organizations/api/views.py:208 project/api/views.py:509
+msgid "Invitation has expired"
+msgstr "De uitnodiging is verlopen"
+
+#: organizations/api/views.py:247 project/api/views.py:541
+msgid "Invitation rejected"
+msgstr "Uitnodiging geweigerd"
+
+#: organizations/api/views.py:262
+msgid "Only organization creator or administrators can view invitations"
+msgstr ""
+"Alleen de maker of beheerders van de organisatie kunnen uitnodigingen "
+"bekijken"
+
+#: organizations/api/views.py:279
+msgid "Only organization creator or administrators can cancel invitations"
+msgstr ""
+"Alleen de maker of beheerders van de organisatie kunnen uitnodigingen "
+"annuleren"
+
+#: project/api/serializers.py:137
+msgid "El nombre del proyecto es obligatorio."
+msgstr "De naam van het project is verplicht."
+
+#: project/api/serializers.py:141
+msgid "La descripción del proyecto es obligatoria."
+msgstr "De beschrijving van het project is verplicht."
+
+#: project/api/serializers.py:144
+msgid "La imagen de portada es obligatoria."
+msgstr "De omslagafbeelding is verplicht."
+
+#: project/api/serializers.py:148
+msgid "El formulario de campo es obligatorio."
+msgstr "Het veldformulier is verplicht."
+
+#: project/api/serializers.py:150
+msgid "El formulario debe tener al menos una pregunta."
+msgstr "Het formulier moet minstens één vraag bevatten."
+
+#: project/api/serializers.py:167
+msgid ""
+"No se pueden eliminar preguntas porque el formulario ya tiene observaciones."
+msgstr ""
+"Er kunnen geen vragen worden verwijderd omdat het formulier al waarnemingen "
+"heeft."
+
+#: project/api/serializers.py:186
+#, python-format
+msgid "La pregunta %(id)s ya tiene respuestas: no se puede cambiar %(fields)s."
+msgstr ""
+"Vraag %(id)s heeft al antwoorden: %(fields)s kan niet worden gewijzigd."
+
+#: project/api/serializers.py:199
+#, python-format
+msgid ""
+"El proyecto necesita más de 10 observaciones para ser publicado. Actualmente "
+"tiene %(count)s."
+msgstr ""
+"Het project heeft meer dan 10 waarnemingen nodig om gepubliceerd te worden. "
+"Op dit moment heeft het er %(count)s."
+
+#: project/api/serializers.py:203
+msgid "Debe proporcionar una contraseña si el proyecto es privado."
+msgstr "Je moet een wachtwoord opgeven als het project privé is."
+
+#: project/api/serializers.py:209
+msgid "La contribución anónima no está disponible en proyectos privados."
+msgstr "Anoniem bijdragen is niet beschikbaar in privéprojecten."
+
+#: project/api/serializers.py:216
+#, python-format
+msgid ""
+"Códigos de país no válidos: %(codes)s. Se esperan códigos ISO 3166-1 alpha-2."
+msgstr ""
+"Ongeldige landcodes: %(codes)s. Er worden ISO 3166-1 alpha-2-codes verwacht."
+
+#: project/api/serializers.py:332 project/api/serializers.py:379
+msgid "Datos JSON inválidos."
+msgstr "Ongeldige JSON-gegevens."
+
+#: project/api/serializers.py:364
+msgid "Solo el creador puede cambiar el campo 'creator'."
+msgstr "Alleen de maker kan het veld 'creator' wijzigen."
+
+#: project/api/views.py:202 project/api/views.py:221
+msgid "Proyecto no encontrado."
+msgstr "Project niet gevonden."
+
+#: project/api/views.py:206
+msgid "Contraseña no proporcionada."
+msgstr "Geen wachtwoord opgegeven."
+
+#: project/api/views.py:213
+msgid "Contraseña incorrecta."
+msgstr "Onjuist wachtwoord."
+
+#: project/api/views.py:357 project/api/views.py:384 project/api/views.py:408
+#: project/api/views.py:586
+msgid "Proyecto no encontrado"
+msgstr "Project niet gevonden"
+
+#: project/api/views.py:360
+msgid "Solo el creador del proyecto puede modificar este mensaje."
+msgstr "Alleen de maker van het project kan dit bericht wijzigen."
+
+#: project/api/views.py:371
+msgid "Se requiere email_intro o email_subject."
+msgstr "email_intro of email_subject is vereist."
+
+#: project/api/views.py:387
+msgid "Only the project creator can remove administrators."
+msgstr "Alleen de maker van het project kan beheerders verwijderen."
+
+#: project/api/views.py:392
+msgid "User not found"
+msgstr "Gebruiker niet gevonden"
+
+#: project/api/views.py:395
+msgid "User is not an administrator of this project."
+msgstr "Gebruiker is geen beheerder van dit project."
+
+#: project/api/views.py:412
+msgid "Only project creator or administrators can send invitations"
+msgstr ""
+"Alleen de maker of beheerders van het project kunnen uitnodigingen versturen"
+
+#: project/api/views.py:456
+#, python-format
+msgid ""
+"You have been invited to join %(project)s as an administrator. Download the "
+"app to accept the invitation."
+msgstr ""
+"Je bent uitgenodigd om als beheerder deel te nemen aan %(project)s. Download "
+"de app om de uitnodiging te accepteren."
+
+#: project/api/views.py:503 project/api/views.py:536
+#, python-format
+msgid "La invitación ya fue %(status)s"
+msgstr "De uitnodiging is al %(status)s"
+
+#: project/api/views.py:516
+msgid "Invitación aceptada correctamente"
+msgstr "Uitnodiging succesvol geaccepteerd"
+
+#: project/api/views.py:557
+msgid "Only project creator or administrators can view invitations"
+msgstr ""
+"Alleen de maker of beheerders van het project kunnen uitnodigingen bekijken"
+
+#: project/api/views.py:573
+msgid "Only project creator or administrators can cancel invitations"
+msgstr ""
+"Alleen de maker of beheerders van het project kunnen uitnodigingen annuleren"
+
+#: project/api/views.py:589
+msgid "Only project creator or administrators can export this project"
+msgstr ""
+"Alleen de maker of beheerders van het project kunnen dit project exporteren"
+
+#: stats/api/views.py:238
+msgid ""
+"Solo el creador y los administradores del proyecto ven sus estadísticas."
+msgstr ""
+"Alleen de maker en de beheerders van het project zien de statistieken ervan."
+
+#: stats/digest.py:27
+msgid "quincenal"
+msgstr "tweewekelijks"
+
+#: stats/digest.py:28
+msgid "mensual"
+msgstr "maandelijks"
+
+#: stats/digest.py:97
+msgid "observaciones nuevas"
+msgstr "nieuwe waarnemingen"
+
+#: stats/digest.py:98
+msgid "usuarios nuevos"
+msgstr "nieuwe gebruikers"
+
+#: stats/digest.py:99
+msgid "proyectos nuevos"
+msgstr "nieuwe projecten"
+
+#: stats/digest.py:100
+msgid "proyectos publicados"
+msgstr "gepubliceerde projecten"
+
+#: stats/digest.py:113
+msgid "Observaciones"
+msgstr "Waarnemingen"
+
+#: stats/digest.py:114
+msgid "Usuarios nuevos"
+msgstr "Nieuwe gebruikers"
+
+#: stats/digest.py:115
+msgid "Proyectos creados"
+msgstr "Aangemaakte projecten"
+
+#: templates/account/email/email_confirmation_signup_message.html:4
+msgid "Bienvenido a Geonity"
+msgstr "Welkom bij Geonity"
+
+#: templates/account/email/email_confirmation_signup_message.html:8
+#, python-format
+msgid "¡Bienvenid@ %(username)s!"
+msgstr "Welkom %(username)s!"
+
+#: templates/account/email/email_confirmation_signup_message.html:11
+msgid "Nos alegra tenerte aquí."
+msgstr "Fijn dat je er bent."
+
+#: templates/account/email/email_confirmation_signup_message.html:14
+msgid ""
+"¡Enhorabuena, acabas de unirte a Geonity! Estamos emocionados de tenerte "
+"como parte de nuestra comunidad y esperamos que disfrutes de la experiencia "
+"recopilando datos en tiempo real."
+msgstr ""
+"Gefeliciteerd, je hebt je zojuist aangesloten bij Geonity! We zijn blij dat "
+"je deel uitmaakt van onze gemeenschap en we hopen dat je geniet van het "
+"verzamelen van gegevens in realtime."
+
+#: templates/account/email/email_confirmation_signup_message.html:17
+msgid ""
+"Para comenzar a utilizar tu cuenta, haz clic en el botón de abajo para "
+"activarla."
+msgstr ""
+"Klik op de knop hieronder om je account te activeren en aan de slag te gaan."
+
+#: templates/account/email/email_confirmation_signup_message.html:24
+msgid "Activar cuenta"
+msgstr "Account activeren"
+
+#: templates/account/email/password_reset_key_message.html:4
+#: templates/account/email/password_reset_key_message.html:21
+msgid "Restablecer contraseña"
+msgstr "Wachtwoord opnieuw instellen"
+
+#: templates/account/email/password_reset_key_message.html:8
+#, python-format
+msgid "Hola, %(username)s"
+msgstr "Hallo %(username)s"
+
+#: templates/account/email/password_reset_key_message.html:11
+msgid "Has solicitado restablecer tu contraseña para acceder a Geonity."
+msgstr "Je hebt gevraagd om je wachtwoord voor Geonity opnieuw in te stellen."
+
+#: templates/account/email/password_reset_key_message.html:14
+msgid "Si no has sido tú, puedes ignorar este mensaje de forma segura."
+msgstr "Als jij dit niet was, kun je dit bericht gerust negeren."
+
+#: templates/email/announcement_stats.html:8
+msgid "Ya puedes ver las estadísticas de tu proyecto"
+msgstr "Je kunt nu de statistieken van je project bekijken"
+
+#: templates/email/announcement_stats.html:12
+#| msgid ""
+#| "Hemos añadido una sección de estadísticas a los proyectos. Entra en tu "
+#| "proyecto y verás un botón <strong style=\\"
+msgid ""
+"Hemos añadido una sección de estadísticas a los proyectos. Entra en tu "
+"proyecto y verás un botón <strong style='color:#111827;'>Estadísticas</"
+"strong>."
+msgstr "We hebben een statistiekengedeelte aan de projecten toegevoegd. Ga naar je project en je ziet een knop <strong style='color:#111827;'>Statistieken</strong>."
+
+#: templates/email/announcement_stats.html:18
+msgid "Qué vas a encontrar"
+msgstr "Wat je gaat vinden"
+
+#: templates/email/announcement_stats.html:19
+msgid "Cuántas observaciones recibe tu proyecto y cómo evoluciona mes a mes."
+msgstr ""
+"Hoeveel waarnemingen je project ontvangt en hoe dat maand na maand verloopt."
+
+#: templates/email/announcement_stats.html:20
+msgid ""
+"Cuánta gente participa, y cuántos contribuyen por primera vez frente a los "
+"que repiten."
+msgstr ""
+"Hoeveel mensen er meedoen, en hoeveel daarvan voor het eerst bijdragen "
+"tegenover degenen die terugkeren."
+
+#: templates/email/announcement_stats.html:21
+msgid ""
+"Desde dónde llegan las observaciones: móvil, web o el QR de contribución "
+"anónima."
+msgstr ""
+"Waar de waarnemingen vandaan komen: mobiel, web of de QR-code voor anonieme "
+"bijdragen."
+
+#: templates/email/announcement_stats.html:27
+msgid ""
+"Además, si tu proyecto tiene actividad recibirás un resumen mensual por "
+"correo. Puedes desactivarlo cuando quieras desde los ajustes del proyecto."
+msgstr ""
+"Bovendien ontvang je een maandelijks overzicht per e-mail als je project "
+"actief is. Je kunt dat op elk moment uitschakelen in de projectinstellingen."
+
+#: templates/email/announcement_stats.html:32
+msgid "Ver mis proyectos"
+msgstr "Mijn projecten bekijken"
+
+#: templates/email/announcement_stats.html:37
+msgid "Este es un aviso puntual, no una suscripción."
+msgstr "Dit is een eenmalige melding, geen abonnement."
+
+#: templates/email/announcement_stats.html:43
+#, python-format
+msgid "¿Dudas? Responde a este correo: llega a %(contact_email)s."
+msgstr "Vragen? Beantwoord deze e-mail: die komt aan bij %(contact_email)s."
+
+#: templates/email/base.html:31
+msgid "Este es un email automático, por favor no responder."
+msgstr "Dit is een automatische e-mail, gelieve niet te antwoorden."
+
+#: templates/email/observation_admin.html:9
+#, python-format
+msgid "Proyecto: %(name)s"
+msgstr "Project: %(name)s"
+
+#: templates/email/observation_admin_notification.html:4
+#: templates/email/post_observation.html:4
+#, python-format
+msgid "[%(name)s] Nueva observación recibida"
+msgstr "[%(name)s] Nieuwe waarneming ontvangen"
+
+#: templates/email/observation_admin_notification.html:11
+#: templates/email/post_observation.html:11
+#, python-format
+msgid "Proyecto: <strong style=\"color:#111827;\">%(name)s</strong>"
+msgstr "Project: <strong style=\"color:#111827;\">%(name)s</strong>"
+
+#: templates/email/observation_admin_notification.html:18
+#, python-format
+msgid "Observación <strong>#%(id)s</strong>"
+msgstr "Waarneming <strong>#%(id)s</strong>"
+
+#: templates/email/observation_admin_notification.html:21
+#, python-format
+msgid "Fecha: %(ts)s"
+msgstr "Datum: %(ts)s"
+
+#: templates/email/observation_admin_notification.html:24
+#, python-format
+msgid "Coordenadas: %(lat)s, %(lng)s"
+msgstr "Coördinaten: %(lat)s, %(lng)s"
+
+#: templates/email/observation_admin_notification.html:28
+#, python-format
+msgid "Dirección: %(addr)s"
+msgstr "Adres: %(addr)s"
+
+#: templates/email/observation_admin_notification.html:33
+msgid "Contribución anónima"
+msgstr "Anonieme bijdrage"
+
+#: templates/email/organization_invitation.html:4
+#: templates/email/project_invitation.html:4
+#, python-format
+msgid "Invitación a %(name)s"
+msgstr "Uitnodiging voor %(name)s"
+
+#: templates/email/organization_invitation.html:8
+msgid "Te han invitado a una organización"
+msgstr "Je bent uitgenodigd voor een organisatie"
+
+#: templates/email/organization_invitation.html:11
+#, python-format
+msgid ""
+"\n"
+"      <strong>%(inviter)s</strong> te ha invitado a unirte a "
+"<strong>%(name)s</strong> como %(role)s.\n"
+"    "
+msgstr ""
+"\n"
+"      <strong>%(inviter)s</strong> heeft je uitgenodigd om lid te worden van "
+"<strong>%(name)s</strong> als %(role)s.\n"
+"    "
+
+#: templates/email/organization_invitation.html:20
+#: templates/email/platform_notification.html:24
+msgid "Organización"
+msgstr "Organisatie"
+
+#: templates/email/organization_invitation.html:23
+msgid "Rol: Administrador"
+msgstr "Rol: Beheerder"
+
+#: templates/email/organization_invitation.html:23
+msgid "Rol: Miembro"
+msgstr "Rol: Lid"
+
+#: templates/email/organization_invitation.html:30
+#: templates/email/project_invitation.html:27
+msgid ""
+"Descarga la app o visita <a href=\"https://geonity.ibercivis.es\" "
+"style=\"color:#4f6ef7;text-decoration:none;\">Geonity</a> para aceptar o "
+"rechazar la invitación."
+msgstr ""
+"Download de app of ga naar <a href=\"https://geonity.ibercivis.es\" "
+"style=\"color:#4f6ef7;text-decoration:none;\">Geonity</a> om de uitnodiging "
+"te accepteren of te weigeren."
+
+#: templates/email/organization_invitation.html:34
+#: templates/email/project_invitation.html:31
+msgid "Esta invitación expirará en 30 días."
+msgstr "Deze uitnodiging verloopt over 30 dagen."
+
+#: templates/email/platform_digest.html:8
+#, python-format
+msgid "Resumen %(period_label)s"
+msgstr "Overzicht (%(period_label)s)"
+
+#: templates/email/platform_digest.html:11
+#, python-format
+msgid "Del %(since)s al %(until)s (%(days)s días)"
+msgstr "Van %(since)s tot %(until)s (%(days)s dagen)"
+
+#: templates/email/platform_digest.html:23
+#: templates/email/project_digest.html:20
+msgid "vs. periodo anterior"
+msgstr "t.o.v. vorige periode"
+
+#: templates/email/platform_digest.html:26
+msgid "sin datos del periodo anterior"
+msgstr "geen gegevens over de vorige periode"
+
+#: templates/email/platform_digest.html:34
+msgid "Evolución"
+msgstr "Verloop"
+
+#: templates/email/platform_digest.html:35
+#, python-format
+msgid "Últimos %(chart_months)s meses"
+msgstr "Laatste %(chart_months)s maanden"
+
+#: templates/email/platform_digest.html:58
+msgid "Quién contribuye"
+msgstr "Wie draagt er bij"
+
+#: templates/email/platform_digest.html:60
+msgid "Contribuidores distintos en el periodo"
+msgstr "Unieke bijdragers in de periode"
+
+#: templates/email/platform_digest.html:62
+msgid "con cuenta"
+msgstr "met account"
+
+#: templates/email/platform_digest.html:64
+msgid "anónimos (QR)"
+msgstr "anoniem (QR)"
+
+#: templates/email/platform_digest.html:66
+msgid "que contribuyen por primera vez"
+msgstr "die voor het eerst bijdragen"
+
+#: templates/email/platform_digest.html:68
+msgid "Observaciones desde móvil"
+msgstr "Waarnemingen via mobiel"
+
+#: templates/email/platform_digest.html:70
+msgid "desde web"
+msgstr "via web"
+
+#: templates/email/platform_digest.html:73
+msgid "sin plataforma registrada"
+msgstr "zonder geregistreerd platform"
+
+#: templates/email/platform_digest.html:78
+msgid "Estado de la plataforma"
+msgstr "Status van het platform"
+
+#: templates/email/platform_digest.html:80
+#, python-format
+msgid ""
+"%(total_projects)s proyectos, de los que %(total_published)s están "
+"publicados y %(active_30d)s han recibido observaciones en los últimos 30 "
+"días."
+msgstr ""
+"%(total_projects)s projecten, waarvan er %(total_published)s gepubliceerd "
+"zijn en %(active_30d)s waarnemingen hebben ontvangen in de laatste 30 dagen."
+
+#: templates/email/platform_digest.html:81
+#, python-format
+msgid ""
+"%(total_observations)s observaciones en total (%(anonymous_observations)s "
+"anónimas) y %(total_users)s usuarios registrados."
+msgstr ""
+"%(total_observations)s waarnemingen in totaal (%(anonymous_observations)s "
+"anoniem) en %(total_users)s geregistreerde gebruikers."
+
+#: templates/email/platform_digest.html:85
+msgid "Publicados sin actividad"
+msgstr "Gepubliceerd zonder activiteit"
+
+#: templates/email/platform_digest.html:86
+msgid "Más de 90 días sin recibir observaciones"
+msgstr "Meer dan 90 dagen geen waarnemingen ontvangen"
+
+#: templates/email/platform_digest.html:92
+#, python-format
+msgid "%(d)s días"
+msgstr "%(d)s dagen"
+
+#: templates/email/platform_digest.html:92
+msgid "ninguna aún"
+msgstr "nog geen"
+
+#: templates/email/platform_digest.html:100
+msgid "Proyectos con más actividad"
+msgstr "Projecten met de meeste activiteit"
+
+#: templates/email/platform_digest.html:112
+msgid "Abrir Geonity"
+msgstr "Geonity openen"
+
+#: templates/email/platform_notification.html:11
+#, python-format
+msgid "Aviso de plataforma: %(event_label)s."
+msgstr "Platformmelding: %(event_label)s."
+
+#: templates/email/platform_notification.html:19
+#: templates/email/project_invitation.html:20
+msgid "Proyecto"
+msgstr "Project"
+
+#: templates/email/platform_notification.html:29
+msgid "Creado por"
+msgstr "Aangemaakt door"
+
+#: templates/email/platform_notification.html:34
+msgid "Fecha de creación"
+msgstr "Aanmaakdatum"
+
+#: templates/email/platform_notification.html:39
+msgid "Primera publicación"
+msgstr "Eerste publicatie"
+
+#: templates/email/platform_notification.html:44
+msgid "observaciones"
+msgstr "waarnemingen"
+
+#: templates/email/platform_notification.html:53
+msgid "Abrir en Geonity"
+msgstr "Openen in Geonity"
+
+#: templates/email/post_observation.html:8
+msgid "Nueva observación"
+msgstr "Nieuwe waarneming"
+
+#: templates/email/project_digest.html:9
+#, python-format
+msgid "Resumen %(period_label)s · del %(since)s al %(until)s"
+msgstr "Overzicht (%(period_label)s) · van %(since)s tot %(until)s"
+
+#: templates/email/project_digest.html:16
+msgid "observaciones este periodo"
+msgstr "waarnemingen deze periode"
+
+#: templates/email/project_digest.html:27
+msgid "personas contribuyendo"
+msgstr "mensen die bijdragen"
+
+#: templates/email/project_digest.html:29
+#, python-format
+msgid "%(n)s nuevas · %(r)s repiten"
+msgstr "%(n)s nieuw · %(r)s terugkerend"
+
+#: templates/email/project_digest.html:35
+msgid "Observaciones por mes"
+msgstr "Waarnemingen per maand"
+
+#: templates/email/project_digest.html:55
+msgid "Desde móvil"
+msgstr "Via mobiel"
+
+#: templates/email/project_digest.html:57
+msgid "Desde web"
+msgstr "Via web"
+
+#: templates/email/project_digest.html:60
+msgid "Anónimas por QR"
+msgstr "Anoniem via QR"
+
+#: templates/email/project_digest.html:63
+msgid "Total histórico del proyecto"
+msgstr "Totaal van het project tot nu toe"
+
+#: templates/email/project_digest.html:66
+msgid "Primera observación"
+msgstr "Eerste waarneming"
+
+#: templates/email/project_digest.html:72
+msgid "Ver el proyecto"
+msgstr "Het project bekijken"
+
+#: templates/email/project_inactive.html:9
+#, python-format
+msgid ""
+"Este proyecto no ha recibido observaciones en los últimos %(days)s días."
+msgstr ""
+"Dit project heeft in de laatste %(days)s dagen geen waarnemingen ontvangen."
+
+#: templates/email/project_inactive.html:10
+#, python-format
+msgid "La última llegó el %(last_observation)s."
+msgstr "De laatste kwam binnen op %(last_observation)s."
+
+#: templates/email/project_inactive.html:10
+msgid "Todavía no ha recibido ninguna."
+msgstr "Het heeft er nog geen ontvangen."
+
+#: templates/email/project_inactive.html:16
+msgid "¿Te echamos una mano?"
+msgstr "Kunnen we je een handje helpen?"
+
+#: templates/email/project_inactive.html:18
+msgid ""
+"Responde a este correo y lo vemos contigo: difusión, revisar el formulario, "
+"un QR para recoger datos sin necesidad de cuenta, o lo que haga falta."
+msgstr ""
+"Beantwoord deze e-mail en we bekijken het samen met je: bekendheid geven, "
+"het formulier nalopen, een QR-code om gegevens te verzamelen zonder account, "
+"of wat er ook nodig is."
+
+#: templates/email/project_inactive.html:21
+msgid ""
+"Y si el proyecto ya ha cumplido su ciclo, puedes marcarlo como terminado "
+"desde su página de edición. Los datos se conservan y deja de aparecer como "
+"activo."
+msgstr ""
+"En als het project zijn doel heeft bereikt, kun je het als afgerond markeren "
+"op de bewerkpagina. De gegevens blijven bewaard en het verschijnt niet "
+"langer als actief."
+
+#: templates/email/project_inactive.html:28
+msgid "Ir al proyecto"
+msgstr "Naar het project"
+
+#: templates/email/project_inactive.html:32
+msgid ""
+"Si prefieres no recibir este resumen, puedes desactivarlo en los ajustes del "
+"proyecto."
+msgstr ""
+"Als je dit overzicht liever niet ontvangt, kun je het uitschakelen in de "
+"projectinstellingen."
+
+#: templates/email/project_inactive.html:38
+#, python-format
+msgid "Puedes responder a este correo: llega a %(contact_email)s."
+msgstr "Je kunt op deze e-mail antwoorden: die komt aan bij %(contact_email)s."
+
+#: templates/email/project_invitation.html:8
+msgid "Te han invitado a un proyecto"
+msgstr "Je bent uitgenodigd voor een project"
+
+#: templates/email/project_invitation.html:11
+#, python-format
+msgid ""
+"\n"
+"      <strong>%(inviter)s</strong> te ha invitado a unirte al proyecto "
+"<strong>%(name)s</strong> como administrador.\n"
+"    "
+msgstr ""
+"\n"
+"      <strong>%(inviter)s</strong> heeft je uitgenodigd om als beheerder "
+"deel te nemen aan het project <strong>%(name)s</strong>.\n"
+"    "
