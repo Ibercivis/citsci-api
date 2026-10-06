@@ -29,7 +29,7 @@ from project.models import Project, Topic, HasTag, ProjectMembership
 from stats.events import record_project_created, record_project_state_change
 from project.api.serializers import (
     ProjectSerializerCreateUpdate, ProjectListSerializer,
-    TopicsSerializer, HasTagSerializer, ProjectSerializer, UserSerializer,
+    TopicsSerializer, HasTagSerializer, UserSerializer,
     ProjectInvitationSerializer, ProjectInvitationCreateSerializer,
     ProjectAdminSerializer
 )
@@ -514,7 +514,9 @@ class ProjectAcceptInvitationView(APIView):
 
         return Response({
             'message': _('Invitación aceptada correctamente'),
-            'project': ProjectSerializer(invitation.project).data
+            'project': ProjectListSerializer(
+                invitation.project, context={'request': request, 'user': request.user}
+            ).data
         }, status=status.HTTP_200_OK)
 
 

@@ -5,7 +5,6 @@ from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
 from project.models import Project, Topic, HasTag, ProjectCover, ProjectInvitation, ProjectMembership
 from organizations.models import Organization
-from organizations.api.serializers import OrganizationSerializer
 from field_forms.models import FieldForm, Question
 from field_forms.api.serializers import FieldFormSerializer, QuestionSerializer
 
@@ -504,18 +503,6 @@ class ProjectListSerializer(serializers.ModelSerializer):
             data['administrators'] = [admin.id for admin in instance.administrators.all()]
 
         return data
-
-
-class ProjectSerializer(serializers.ModelSerializer):
-    hasTag = HasTagSerializer(many=True)
-    topic = TopicsSerializer(many=True)
-    organizations = OrganizationSerializer(many=True)
-    contributions = serializers.IntegerField(source='contributions', read_only=True)
-    total_likes = serializers.IntegerField(source='total_likes', read_only=True)
-
-    class Meta:
-        model = Project
-        fields = ['id', 'name', 'description', 'created_at', 'updated_at', 'topic', 'hasTag', 'contributions', 'total_likes', 'organizations', 'creator', 'administrators']
 
 
 class ProjectAdminSerializer(ProjectSerializerCreateUpdate):
