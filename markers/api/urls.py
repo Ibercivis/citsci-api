@@ -4,6 +4,9 @@ from markers.api import views
 urlpatterns = [
     path('observations/', views.ObservationListCreate.as_view(), name='observation_list_create'),
     path('observations/my/', views.MyObservationsView.as_view(), name='my_observations'),
+    # Alias de compatibilidad: la app móvil llama a estas rutas en singular (no existían: 404).
+    path('observation/mine/', views.MyObservationsView.as_view(), name='my_observations_alias'),
+    path('observation/<int:pk>/', views.ObservationRetrieveUpdateDestroy.as_view(), name='observation_retrieve_alias'),
     path('observations/<int:pk>/', views.ObservationRetrieveUpdateDestroy.as_view(), name='observation_retrieve'),
     path('field_form/<int:field_form_id>/observations/', views.ObservationByFieldFormList.as_view(), name='observation_by_field_form_list'),
     path('field_form/<int:field_form_id>/observations/mine/', views.MyObservationsByFieldFormView.as_view(), name='my_observations_by_field_form'),

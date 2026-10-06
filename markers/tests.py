@@ -363,3 +363,46 @@ class AnonymousContributionTests(APITestCase):
         self.client.force_authenticate(user=self.owner)
         self.assertEqual(self.client.delete(url).status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(Observation.objects.count(), 0)
+
+
+@override_settings(CACHES=LOCMEM_CACHE)
+class CompatibilityAliasTests(APITestCase):
+    """
+    Alias de compatibilidad (rutas en singular que llaman la app móvil y el panel admin).
+    Deben comportarse exactamente igual que las rutas originales.
+    """
+
+    def setUp(self):
+        from django.contrib.gis.geos import Point
+        from django.utils import timezone
+
+        self.user = User.objects.create_user('alias', 'alias@example.com', 'pass1234')
+        self.project = Project.objects.create(
+            creator=self.user, name='Proyecto', description={'default': 'desc'}, draft=False,
+        )
+        self.field_form = FieldForm.objects.create(project=self.project)
+        self.observation = Observation.objects.create(
+            creator=self.user, field_form=self.field_form, timestamp=timezone.now(),
+            geoposition=Point(-0.88, 41.65), data={},
+        )
+        self.client.force_authenticate(self.user)
+
+    def test_observation_mine_is_the_same_as_observations_my(self):
+        original = self.client.get(reverse('my_observations'))
+        alias = self.client.get(reverse('my_observations_alias'))
+        self.assertEqual(alias.status_code, status.HTTP_200_OK)
+        self.assertEqual(alias.json(), original.json())
+        self.assertEqual([o['id'] for o in alias.json()], [self.observation.id])
+
+    def test_observation_detail_alias_is_the_same_as_the_original(self):
+        original = self.client.get(reverse('observation_retrieve', args=[self.observation.id]))
+        alias = self.client.get(reverse('observation_retrieve_alias', args=[self.observation.id]))
+        self.assertEqual(alias.status_code, status.HTTP_200_OK)
+        self.assertEqual(alias.json(), original.json())
+
+    def test_field_form_detail_alias_is_the_same_as_field_forms(self):
+        original = self.client.get(reverse('field_form_retrieve_destroy', args=[self.field_form.id]))
+        alias = self.client.get(reverse('field_form_retrieve_destroy_alias', args=[self.field_form.id]))
+        self.assertEqual(alias.status_code, status.HTTP_200_OK)
+        self.assertEqual(alias.json(), original.json())
+
