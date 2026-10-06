@@ -1,6 +1,7 @@
 from rest_framework import routers
 from django.urls import path
 from . import views
+from .home import HomeContinueView, ManageProjectsView, MyImpactView, MyPendingCountView
 from django.conf import settings
 from django.conf.urls.static import static
 from .views import (
@@ -25,6 +26,11 @@ urlpatterns = [
 
     # Rutas añadidas por Jorge, pendiente de revisar las anteriores y eliminarlas si no se usan 
     
+    # Rutas de solo lectura para las pantallas de Inicio y Gestionar del front React (ver project/api/home.py)
+    path('home/continue/', HomeContinueView.as_view(), name='home-continue'),
+    path('manage/projects/', ManageProjectsView.as_view(), name='manage-projects'),
+    path('users/me/impact/', MyImpactView.as_view(), name='my-impact'),
+    path('users/me/pending-count/', MyPendingCountView.as_view(), name='my-pending-count'),
     path('project/', views.ProjectListCreate.as_view(), name='project_list_create'),    path('project/my_projects/', views.MyProjectsView.as_view(), name='my_projects'),
     path('project/my_admin_projects/', views.MyAdminProjectsView.as_view(), name='my_admin_projects'),
     path('project/drafts/', views.MyDraftProjectsView.as_view(), name='draft_projects'),
