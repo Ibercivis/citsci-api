@@ -41,7 +41,7 @@ die() { echo "✗ $*" >&2; exit 1; }
 # 1. Estado de partida
 [ "$(git rev-parse --abbrev-ref HEAD)" = "$BRANCH" ] || die "El servidor no está en la rama $BRANCH."
 [ -z "$(git status --porcelain)" ] || { git status --short; die "Hay cambios sin commitear en el servidor. Commitéalos y súbelos antes de desplegar."; }
-git fetch -q origin "$BRANCH"
+git fetch -q --tags origin "$BRANCH"
 PREV="$(git rev-parse HEAD)"
 NEW="$(git rev-parse "origin/$BRANCH")"
 [ "$PREV" != "$NEW" ] || { say "Ya está desplegado $(git rev-parse --short HEAD). No hay nada que hacer."; exit 0; }
