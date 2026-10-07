@@ -7,7 +7,7 @@ from django.http import Http404, HttpResponse
 from django.contrib.gis.geos import Point
 from django.shortcuts import get_object_or_404
 from rest_framework.views import View
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.exceptions import PermissionDenied, NotAuthenticated
 from django.core.exceptions import ValidationError
 from rest_framework import generics, status, serializers
@@ -210,7 +210,9 @@ class ObservationListCreate(generics.ListCreateAPIView):
     def get_permissions(self):
         if self.request.method == 'POST':
             return [IsAuthenticated(), HasClientApiKey()]
-        return [IsAuthenticated()]
+        # El listado devuelve las observaciones de TODOS los proyectos, sin respetar privacidad ni posición difusa:
+        # solo staff. Los clientes leen las observaciones por proyecto (field_form/<id>/observations/, que sí lo respeta).
+        return [IsAdminUser()]
 
     def create(self, request, *args, **kwargs):
 

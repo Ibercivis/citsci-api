@@ -44,12 +44,16 @@ class DebugLoginView(DjLoginView):
 
 
 class UserViewSet(generics.ListAPIView):
+    """Todos los usuarios. Solo staff: ignora la preferencia de visibilidad del perfil (para eso está `users/list/`)."""
     queryset = User.objects.all()
     serializer_class = UserSerializer
+    permission_classes = [permissions.IsAdminUser]
 
 class UserViewSetDetail(generics.RetrieveAPIView):
+    """Un usuario cualquiera. Solo staff, por la misma razón que `UserViewSet`."""
     queryset = User.objects.all()
     serializer_class = UserSerializer
+    permission_classes = [permissions.IsAdminUser]
 
 #Vista para obtener los usuarios visibles
 class VisibleUsersListView(generics.ListAPIView):
