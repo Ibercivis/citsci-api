@@ -1,6 +1,7 @@
 from rest_framework import routers
 from django.urls import path
 from . import views
+from .activity import MyActivityView
 from .home import HomeContinueView, ManageProjectsView, MyImpactView, MyPendingCountView
 from django.conf import settings
 from django.conf.urls.static import static
@@ -30,6 +31,7 @@ urlpatterns = [
     path('home/continue/', HomeContinueView.as_view(), name='home-continue'),
     path('manage/projects/', ManageProjectsView.as_view(), name='manage-projects'),
     path('users/me/impact/', MyImpactView.as_view(), name='my-impact'),
+    path('users/me/activity/', MyActivityView.as_view(), name='my-activity'),
     path('users/me/pending-count/', MyPendingCountView.as_view(), name='my-pending-count'),
     path('project/', views.ProjectListCreate.as_view(), name='project_list_create'),    path('project/my_projects/', views.MyProjectsView.as_view(), name='my_projects'),
     path('project/my_admin_projects/', views.MyAdminProjectsView.as_view(), name='my_admin_projects'),
