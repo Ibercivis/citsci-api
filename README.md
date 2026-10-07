@@ -6,56 +6,61 @@ Citizen Science Application API
 - UI: `/api/docs/`
 - Schema: `/api/schema/`
 
-## Campos administrativos dinámicos en Observations
+## Dynamic administrative fields on Observations
 
-Permite añadir “columnas” administrables (por proyecto) para las observaciones (p. ej. **Validado** Sí/No, **Estado**), sin cambiar el payload original de `Observation` ni los endpoints existentes de observaciones.
+Lets project administrators add manageable "columns" to a project's observations (e.g. **Validated** Yes/No, **Status**) without changing the original `Observation` payload or the existing observation endpoints.
 
-### Conceptos
+### Concepts
 
-- **ProjectObservationField**: define una columna administrativa para un proyecto (ej. `validated`, `status`).
-- **ObservationFieldValue**: guarda el valor de esa columna para una observación concreta.
+- **ProjectObservationField**: defines an administrative column for a project (e.g. `validated`, `status`).
+- **ObservationFieldValue**: stores the value of that column for a specific observation.
 
-### Autenticación
+### Authentication
 
-- Para operaciones de escritura (crear/editar/borrar definiciones) y para leer/editar valores (`/admin-fields/`), usa token en cabecera:
+- Write operations (creating/editing/deleting definitions) and reading/editing values (`/admin-fields/`) need a token in the header:
 	- `Authorization: Token <key>`
-- El `GET` de definiciones (`/api/projects/{project_id}/observation-fields/`) es público (no requiere autenticación, de momento).
+- `GET` of the definitions (`/api/projects/{project_id}/observation-fields/`) is public (no authentication required, for now).
 
 ### Endpoints
 
-#### 1) Definir columnas (por proyecto)
+#### 1) Define columns (per project)
 
 - `GET /api/projects/{project_id}/observation-fields/`
-	- Lista la configuración de columnas del proyecto.
+	- Lists the project's column configuration.
 
 - `POST /api/projects/{project_id}/observation-fields/`
-	- Crea una columna (solo creator/administradores del proyecto).
-	- Ejemplos:
+	- Creates a column (project creator/administrators only).
+	- Examples:
 		- Boolean:
-			- `{ "key": "validated", "label": "Validado", "field_type": "bool", "required": false, "order": 10 }`
+			- `{ "key": "validated", "label": "Validated", "field_type": "bool", "required": false, "order": 10 }`
 		- Choice:
-			- `{ "key": "status", "label": "Estado", "field_type": "choice", "choices": ["Enviado","Recibido","En proceso"], "order": 20 }`
+			- `{ "key": "status", "label": "Status", "field_type": "choice", "choices": ["Sent","Received","In progress"], "order": 20 }`
 
 - `PATCH /api/projects/{project_id}/observation-fields/{id}/`
-	- Edita definición (solo creator/administradores).
+	- Edits a definition (creator/administrators only).
 
 - `DELETE /api/projects/{project_id}/observation-fields/{id}/`
-	- Borra definición (solo creator/administradores).
+	- Deletes a definition (creator/administrators only).
 
-#### 2) Leer/editar valores (por observación)
+#### 2) Read/edit values (per observation)
 
 - `GET /api/observations/{observation_id}/admin-fields/`
-	- Devuelve todas las columnas del proyecto y el valor actual (si existe) para esa observación.
+	- Returns all the project's columns and the current value (if any) for that observation.
 
 - `PATCH /api/observations/{observation_id}/admin-fields/`
-	- Actualiza valores (solo creator/administradores del proyecto).
+	- Updates values (project creator/administrators only).
 	- Body:
-		- `{ "values": { "validated": true, "status": "Recibido" } }`
-	- Respuesta:
+		- `{ "values": { "validated": true, "status": "Received" } }`
+	- Response:
 		- `{ "updated": ["validated", "status"] }`
 
-#### 3) Leer valores en bloque (por proyecto)
+#### 3) Read values in bulk (per project)
 
 - `GET /api/projects/{project_id}/observation-admin-values/`
-	- Devuelve las definiciones de columnas del proyecto (`fields`) y, para cada observación del proyecto, un mapa `values` por `key`.
-	- Requiere auth y ser creator/administrador del proyecto.
+	- Returns the project's column definitions (`fields`) and, for each observation of the project, a `values` map keyed by `key`.
+	- Requires authentication and being a project creator/administrator.
+
+## Deployment
+
+Production is deployed with `deploy.sh` (run on the server): it checks the working tree, backs up the database and the code, fast-forwards to `origin/vjorge`, runs `manage.py check`, restarts only what is needed with supervisord, verifies the result, rolls back automatically on failure, and tags the release (`prod-YYYY-MM-DD-N`).
+Run `./deploy.sh --help` for the options (`--dry-run`, `--with-migrations`).
