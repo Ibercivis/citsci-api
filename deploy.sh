@@ -5,6 +5,8 @@
 #   ./deploy.sh --dry-run          shows what would come in and what it would do, without touching anything
 #   ./deploy.sh --with-migrations  allows deploying commits that include migrations (aborts by default)
 #
+# Requires DB_NAME (the production database name) in ~/.geonity-deploy.env, or in the environment.
+#
 # What it does, in this order (and stops if anything fails):
 #   1. Checks that the working tree is clean and that the update is a fast-forward.
 #   2. Backup: pg_dump of the database + an archive of the current code (in ~/backups).
@@ -19,7 +21,11 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 BRANCH="vjorge"
-DB_NAME="${DB_NAME:-geonity_production}"
+# Environment-specific settings live outside the repository (it is public): ~/.geonity-deploy.env
+CONFIG="${DEPLOY_CONFIG:-$HOME/.geonity-deploy.env}"
+# shellcheck disable=SC1090
+[ -f "$CONFIG" ] && . "$CONFIG"
+: "${DB_NAME:?Set DB_NAME (the production database name) in $CONFIG}"
 BACKUPS="$HOME/backups"
 LOG="$HOME/deploys.log"
 SMOKE_URL="${SMOKE_URL:-https://geonity.ibercivis.es/api/organization/type/}"

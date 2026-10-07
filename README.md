@@ -64,3 +64,4 @@ Lets project administrators add manageable "columns" to a project's observations
 
 Production is deployed with `deploy.sh` (run on the server): it checks the working tree, backs up the database and the code, fast-forwards to `origin/vjorge`, runs `manage.py check`, restarts only what is needed with supervisord, verifies the result, rolls back automatically on failure, and tags the release (`prod-YYYY-MM-DD-N`).
 Run `./deploy.sh --help` for the options (`--dry-run`, `--with-migrations`).
+The production database name is not stored in the repository: put `DB_NAME=...` in `~/.geonity-deploy.env` on the server.
