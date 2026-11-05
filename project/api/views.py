@@ -268,6 +268,26 @@ class MyDraftProjectsView(generics.ListAPIView):
         ).order_by('-updated_at')
 
 
+class ExploreDraftsView(generics.ListAPIView):
+    """
+    Todos los borradores de la plataforma, con la misma forma que GET /project/, para el filtro
+    "Borradores" de Explorar. Es una ruta nueva y no se toca /project/drafts/, que usa Flutter.
+    Solo con sesion: un borrador es trabajo a medias y no debe quedar publico ni indexable.
+    """
+    serializer_class = ProjectListSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['user'] = self.request.user
+        return context
+
+    def get_queryset(self):
+        return Project.objects.filter(draft=True).select_related('creator').prefetch_related(
+            'administrators', 'covers', 'topic', 'hasTag', 'organizations'
+        ).order_by('-updated_at')
+
+
 class MyAdminProjectsView(generics.ListAPIView):
     serializer_class = ProjectAdminSerializer
     permission_classes = [IsAuthenticated]

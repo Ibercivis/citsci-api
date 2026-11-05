@@ -3,7 +3,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.test import APIClient, APITestCase
 
 from project.models import Project, ProjectInvitation, ProjectStatusLog
 
@@ -110,3 +110,55 @@ class ProjectAcceptInvitationTests(APITestCase):
         self.invitation.refresh_from_db()
         self.assertEqual(self.invitation.status, 'pending')
 
+
+class ExploreDraftsTests(TestCase):
+    url = '/api/explore/drafts/'
+
+    def setUp(self):
+        self.client = APIClient()
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.me = User.objects.create_user(username='me', email='me@example.com')
+        cls.other = User.objects.create_user(username='other', email='other@example.com')
+        cls.my_draft = Project.objects.create(
+            creator=cls.me, name='Mi borrador', description={'default': 'd'}, draft=True)
+        cls.other_draft = Project.objects.create(
+            creator=cls.other, name='Borrador ajeno', description={'default': 'd'}, draft=True,
+            anonymous_contribution=True)
+        cls.published = Project.objects.create(
+            creator=cls.other, name='Publicado', description={'default': 'd'}, draft=False)
+
+    def test_anonymous_gets_401(self):
+        self.assertEqual(self.client.get(self.url).status_code, 401)
+
+    def test_returns_other_users_drafts_and_never_published(self):
+        self.client.force_authenticate(user=self.me)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        ids = {p['id'] for p in response.json()}
+        self.assertEqual(ids, {self.my_draft.id, self.other_draft.id})
+        self.assertNotIn(self.published.id, ids)
+        self.assertTrue(all(p['draft'] for p in response.json()))
+
+    def test_is_a_plain_array_sorted_by_updated_at_desc(self):
+        self.client.force_authenticate(user=self.me)
+        data = self.client.get(self.url).json()
+        self.assertIsInstance(data, list)
+        updated = [p['updated_at'] for p in data]
+        self.assertEqual(updated, sorted(updated, reverse=True))
+
+    def test_keys_match_project_list(self):
+        self.client.force_authenticate(user=self.me)
+        draft_keys = set(self.client.get(self.url).json()[0].keys())
+        list_keys = set(self.client.get('/api/project/').json()[0].keys())
+        self.assertEqual(draft_keys, list_keys)
+
+    def test_anonymous_token_only_for_creator_or_admin(self):
+        self.client.force_authenticate(user=self.me)
+        by_id = {p['id']: p for p in self.client.get(self.url).json()}
+        self.assertIsNone(by_id[self.other_draft.id]['anonymous_token'])
+        self.client.force_authenticate(user=self.other)
+        by_id = {p['id']: p for p in self.client.get(self.url).json()}
+        self.assertEqual(by_id[self.other_draft.id]['anonymous_token'],
+                         str(self.other_draft.anonymous_token))

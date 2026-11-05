@@ -35,6 +35,7 @@ urlpatterns = [
     path('users/me/pending-count/', MyPendingCountView.as_view(), name='my-pending-count'),
     path('project/', views.ProjectListCreate.as_view(), name='project_list_create'),    path('project/my_projects/', views.MyProjectsView.as_view(), name='my_projects'),
     path('project/my_admin_projects/', views.MyAdminProjectsView.as_view(), name='my_admin_projects'),
+    path('explore/drafts/', views.ExploreDraftsView.as_view(), name='explore-drafts'),
     path('project/drafts/', views.MyDraftProjectsView.as_view(), name='draft_projects'),
     path('project/my_liked/', views.MyLikedProjectsView.as_view(), name='my_liked_projects'),
     path('project/my_participating/', views.MyParticipatingProjectsView.as_view(), name='my_participating_projects'),
