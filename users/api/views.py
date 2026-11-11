@@ -5,7 +5,10 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework import generics, permissions
 from django.contrib.auth.models import User
-from users.api.serializers import UserSerializer, ProfileSerializer, ConsentSerializer, UserDetailsSerializer
+from users.api.serializers import (
+    UserSerializer, ProfileSerializer, ConsentSerializer, UserDetailsSerializer, NewsletterSerializer,
+)
+from users.newsletter import user_from_unsubscribe_token
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import IsAuthenticated
 import requests
@@ -176,6 +179,54 @@ class ConsentView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         user = serializer.update_consent(request.user)
         return Response(UserDetailsSerializer(user).data, status=status.HTTP_200_OK)
+
+
+class NewsletterView(APIView):
+    """Suscripción del usuario autenticado a las novedades de Geonity. GET la consulta, PUT la cambia."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        return Response(self._state(request.user.profile))
+
+    def put(self, request, *args, **kwargs):
+        serializer = NewsletterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        profile = request.user.profile
+        profile.set_newsletter(serializer.validated_data['subscribed'])
+        return Response(self._state(profile))
+
+    @staticmethod
+    def _state(profile):
+        return {
+            'subscribed': profile.newsletter_subscribed,
+            'accepted_at': profile.newsletter_accepted_at,
+            'revoked_at': profile.newsletter_revoked_at,
+        }
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class NewsletterUnsubscribeView(View):
+    """
+    Baja desde el enlace del correo, sin iniciar sesión: el token firmado identifica al usuario.
+
+    El GET solo enseña la página con el botón, no da de baja: los antivirus y las previsualizaciones
+    de enlaces abren todos los enlaces de un correo. La baja es el POST, que es también lo que manda
+    Gmail con la baja en un clic (List-Unsubscribe-Post), por eso va sin CSRF.
+    """
+
+    def get(self, request, token):
+        user = user_from_unsubscribe_token(token)
+        if user is None:
+            return render(request, 'newsletter_unsubscribe.html', {'state': 'invalid'}, status=404)
+        state = 'confirm' if user.profile.newsletter_subscribed else 'done'
+        return render(request, 'newsletter_unsubscribe.html', {'state': state})
+
+    def post(self, request, token):
+        user = user_from_unsubscribe_token(token)
+        if user is None:
+            return render(request, 'newsletter_unsubscribe.html', {'state': 'invalid'}, status=404)
+        user.profile.set_newsletter(False)
+        return render(request, 'newsletter_unsubscribe.html', {'state': 'done'})
 
 
 class UserDeleteView(APIView):

@@ -151,6 +151,8 @@ class CustomRegisterSerializer(DefaultRegisterSerializer):
     username = serializers.CharField(required=False, allow_blank=True, default='')
     terms_version = serializers.CharField(required=False, allow_blank=True, default='')
     privacy_version = serializers.CharField(required=False, allow_blank=True, default='')
+    # Casilla opcional del alta. Sin marcar (o sin enviar) el usuario NO queda suscrito.
+    newsletter = serializers.BooleanField(required=False, default=False)
 
     def validate_username(self, username):
         if not username:
@@ -171,6 +173,7 @@ class CustomRegisterSerializer(DefaultRegisterSerializer):
         data['username'] = username
         data['terms_version'] = self.validated_data.get('terms_version', '')
         data['privacy_version'] = self.validated_data.get('privacy_version', '')
+        data['newsletter'] = self.validated_data.get('newsletter', False)
         return data
 
     def custom_signup(self, request, user):
@@ -190,6 +193,8 @@ class CustomRegisterSerializer(DefaultRegisterSerializer):
         if privacy_version:
             profile.privacy_version = privacy_version
             profile.privacy_accepted_at = now
+        if self.cleaned_data.get('newsletter'):
+            profile.newsletter_accepted_at = now
         profile.save()
 
 
@@ -198,6 +203,7 @@ class UserDetailsSerializer(serializers.ModelSerializer):
     terms_version = serializers.CharField(source='profile.terms_version', read_only=True)
     privacy_accepted_at = serializers.DateTimeField(source='profile.privacy_accepted_at', read_only=True)
     privacy_version = serializers.CharField(source='profile.privacy_version', read_only=True)
+    newsletter_subscribed = serializers.BooleanField(source='profile.newsletter_subscribed', read_only=True)
 
     class Meta:
         model = User
@@ -206,7 +212,7 @@ class UserDetailsSerializer(serializers.ModelSerializer):
         # UserSerializer, que sirve /api/users/, /api/users/<pk>/ y /api/users/list/, y ahi seria
         # publicar a cualquier autenticado la lista de quien administra la plataforma.
         fields = ['pk', 'email', 'is_staff', 'terms_accepted_at', 'terms_version',
-                  'privacy_accepted_at', 'privacy_version']
+                  'privacy_accepted_at', 'privacy_version', 'newsletter_subscribed']
         read_only_fields = fields
 
 
@@ -223,6 +229,10 @@ class ConsentSerializer(serializers.Serializer):
         profile.privacy_accepted_at = now
         profile.save()
         return user
+
+
+class NewsletterSerializer(serializers.Serializer):
+    subscribed = serializers.BooleanField()
 
 
 class UserSerializer(serializers.ModelSerializer):

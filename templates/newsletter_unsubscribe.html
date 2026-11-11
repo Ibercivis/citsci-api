@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Novedades de Geonity</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 0;
+  }
+  .container {
+    background-color: #ffffff;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 0;
+  }
+  .header img {
+    width: 100%;
+    height: auto;
+  }
+  .content {
+    padding: 20px;
+    text-align: center;
+  }
+  .footer {
+    padding: 10px;
+    text-align: center;
+    font-size: 12px;
+  }
+  .button {
+    display: inline-block;
+    padding: 10px 20px;
+    margin-top: 20px;
+    background-color: #000000;
+    color: white;
+    text-decoration: none;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .button:hover {
+    background-color: #333333;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="https://geonity.ibercivis.es/static/img/header_geonity.png" alt="Cabecera Geonity"/>
+    </div>
+    <div class="content">
+      {% if state == 'confirm' %}
+        <h1>¿Dejar de recibir novedades?</h1>
+        <p>Si confirmas, no te enviaremos más correos con novedades de Geonity.</p>
+        <form method="post" action="">
+          <button type="submit" class="button">Darme de baja</button>
+        </form>
+      {% elif state == 'done' %}
+        <h1>Te has dado de baja</h1>
+        <p>No recibirás más correos con novedades de Geonity. Puedes volver a activarlos cuando quieras desde tu perfil.</p>
+        <a href="https://geonity.ibercivis.es" class="button">Ir a Geonity</a>
+      {% else %}
+        <h1>Enlace no válido</h1>
+        <p>Este enlace de baja no es válido. Puedes gestionar tus preferencias desde tu perfil en Geonity.</p>
+        <a href="https://geonity.ibercivis.es" class="button">Ir a Geonity</a>
+      {% endif %}
+    </div>
+    <div class="footer">
+      <p>Seguirás recibiendo los correos necesarios para usar tu cuenta, como los de activación o cambio de contraseña.</p>
+    </div>
+  </div>
+</body>
+</html>

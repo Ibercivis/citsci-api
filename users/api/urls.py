@@ -9,7 +9,7 @@ from users.api.views import (
     UserProfileView, VisibleUsersListView, ActivateAccountView,
     CustomConfirmEmailView, RecoverySuccess, AllInvitationsView,
     AcceptInvitationUnifiedView, RejectInvitationUnifiedView, DebugLoginView,
-    GoogleLoginView, ConsentView
+    GoogleLoginView, ConsentView, NewsletterView, NewsletterUnsubscribeView
 )
 
 urlpatterns = [
@@ -30,6 +30,8 @@ urlpatterns = [
     path('users/email_recovery/', EmailRecoveryView.as_view(), name='email_recovery'),
     path('users/recovery_success/', RecoverySuccess.as_view(), name='recovery_success'),
     path('users/consent/', ConsentView.as_view(), name='user-consent'),
+    path('users/newsletter/', NewsletterView.as_view(), name='user-newsletter'),
+    path('users/newsletter/unsubscribe/<str:token>/', NewsletterUnsubscribeView.as_view(), name='newsletter-unsubscribe'),
     path('users/delete/', UserDeleteView.as_view(), name='user-delete'),
     path('users/', UserViewSet.as_view(), name='users'),
     path('users/<int:pk>/', UserViewSetDetail.as_view(), name='users-detail'),
