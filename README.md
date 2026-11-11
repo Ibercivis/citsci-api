@@ -1,6 +1,39 @@
 # citsci-api
 Citizen Science Application API
 
+## Arranque local
+
+Solo necesita Docker:
+
+```sh
+docker compose up --build
+```
+
+Deja en pie cinco servicios: PostgreSQL con PostGIS, Redis, el API, el worker de `django-rq` y el
+scheduler — los mismos tres procesos que supervisord corre en produccion (ver `deploy.sh`). Las
+migraciones se aplican solas al arrancar.
+
+- API: <http://localhost:8000/>
+- Documentacion OpenAPI: <http://localhost:8000/api/docs/>
+- Admin: <http://localhost:8000/admin/>, con un usuario creado a mano:
+  `docker compose exec citsci-api python manage.py createsuperuser`
+
+En desarrollo `DEBUG` esta activo y **los correos salen por la consola**, asi que no hacen falta
+credenciales de AWS SES para ver la plataforma funcionando. Para parar y borrar los datos:
+`docker compose down -v`.
+
+La base arranca vacia. Para llenarla con una muestra pequena que **no copia nada de produccion**
+—cuatro proyectos, seis cuentas inventadas y sesenta observaciones construidas sobre registros
+publicos— ver [`LOCAL-DEV.md`](LOCAL-DEV.md).
+
+Dos avisos:
+
+- **No es la pila de produccion**, y no pretende serlo: produccion corre sobre el host con
+  supervisord. Aqui las contrasenas estan a la vista y el servidor es el de desarrollo de Django.
+- El codigo va montado dentro del contenedor, asi que **un `citsci-api/local.env` del host tambien
+  se lee ahi** y pisa lo que diga el `compose`. Si algo no cuadra con la configuracion, mirar ese
+  fichero primero.
+
 ## OpenAPI (Swagger)
 
 - UI: `/api/docs/`

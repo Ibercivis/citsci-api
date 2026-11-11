@@ -42,7 +42,13 @@ SECRET_KEY = env("SECRET_KEY", default="django-insecure-!rihhd3lxg-!3x8+ea*3)n9n
 # Auto-enables DEBUG when running via manage.py runserver, unless overridden by env var
 import sys
 DEBUG = env.bool("DEBUG", default='runserver' in sys.argv)
-ALLOWED_HOSTS = ['api.ibercivis.es', 'geonity.ibercivis.es', 'geonity-backend.ibercivis.es']
+# Sin la variable, la lista es la de produccion y el despliegue no cambia. Con ella, un arranque
+# local puede responder a localhost: sin este hueco, cualquier nombre que no sea uno de los tres
+# recibe un 400 de Django antes de llegar a ninguna vista.
+ALLOWED_HOSTS = env.list(
+    "ALLOWED_HOSTS",
+    default=['api.ibercivis.es', 'geonity.ibercivis.es', 'geonity-backend.ibercivis.es'],
+)
 
 # For the API
 BASE_URL = env("BASE_URL")
@@ -240,10 +246,16 @@ AUTHENTICATION_BACKENDS = [
 # As we added django.contrib.sites
 SITE_ID = 1
 
-# email to show in the terminal
-# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-# email using amazon ses
-EMAIL_BACKEND = 'django_ses.SESBackend'
+# En produccion (DEBUG=False) los correos salen por SES, como hasta ahora. En desarrollo salen por
+# la consola: mirar la plataforma en local no deberia exigir credenciales de SES, y un rebote de
+# pruebas cuenta contra la reputacion de envio. La variable permite forzar cualquiera de los dos.
+EMAIL_BACKEND = env(
+    "EMAIL_BACKEND",
+    default=(
+        'django.core.mail.backends.console.EmailBackend' if DEBUG
+        else 'django_ses.SESBackend'
+    ),
+)
 DEFAULT_FROM_EMAIL = env("FROM_EMAIL")
 EMAIL_SUBJECT_PREFIX = '[Geonity]'
 

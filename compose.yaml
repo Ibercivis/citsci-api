@@ -1,0 +1,100 @@
+# Arranque local del API. `docker compose up` deja en pie la base de datos con PostGIS, Redis, el
+# API, el worker de django-rq y el scheduler: los mismos tres procesos que supervisord corre en
+# produccion (ver deploy.sh).
+#
+# No es una pila de produccion y no pretende serlo: contrasenas a la vista, servidor de desarrollo de
+# Django y DEBUG activo. Lo que resuelve es que este repo no tenia ninguna forma de arrancarlo.
+#
+# Los servicios llevan prefijo `citsci-` a proposito: este fichero esta pensado tambien para que otro
+# `compose` lo traiga con `include:`, y ahi todos los servicios caen en un mismo proyecto. Sin
+# prefijo, un `db` o un `redis` de otra app chocarian con estos.
+name: citsci-api
+
+x-api: &api
+  build: .
+  image: citsci-api:dev
+  environment:
+    # DEBUG explicito, y no por omision: settings.py lo deduce de si `runserver` esta en la linea de
+    # comandos, asi que el worker y el scheduler arrancarian con DEBUG=False. Importa porque el que
+    # envia los correos es el worker: sin esto intentaria hablar con SES con las credenciales de
+    # relleno de aqui abajo, en lugar de escribirlos por la consola.
+    DEBUG: "True"
+    # ALLOWED_HOSTS: sin esta variable settings.py usa la lista de produccion, que no incluye
+    # ningun nombre local; por `localhost` el API responderia 400.
+    ALLOWED_HOSTS: localhost,127.0.0.1,citsci-api
+    BASE_URL: http://localhost:8000
+    DB_NAME: citsci
+    DB_USER: citsci
+    DB_PASSWORD: citsci
+    DB_HOST: citsci-db
+    REDIS_HOST: citsci-redis
+    # El correo sale por consola porque DEBUG esta activo (settings.py), asi que estas cuatro son
+    # de relleno: estan porque settings.py las lee sin default, no porque se envie nada por SES.
+    FROM_EMAIL: dev@localhost
+    AWS_ACCESS_KEY_ID: dev
+    AWS_SECRET_ACCESS_KEY: dev
+    AWS_SES_REGION_NAME: eu-west-1
+    AWS_SES_REGION_ENDPOINT: https://email.eu-west-1.amazonaws.com
+    CLIENT_API_KEY_MOBILE: dev-mobile
+    CLIENT_API_KEY_WEB: dev-web
+  volumes:
+    # El codigo, montado: el servidor de desarrollo recarga sin reconstruir la imagen.
+    - .:/app
+  depends_on:
+    citsci-db:
+      condition: service_healthy
+    citsci-redis:
+      condition: service_healthy
+
+services:
+  citsci-db:
+    # Las imagenes oficiales postgis/postgis son SOLO amd64 (comprobado con
+    # `docker manifest inspect postgis/postgis:16-3.5`), asi que en un portatil ARM corren emuladas.
+    # Esta es la replica multiarquitectura del mismo mantenedor, y da el mismo PostGIS 3.5.
+    image: imresamu/postgis:16-3.5
+    environment:
+      POSTGRES_DB: citsci
+      POSTGRES_USER: citsci
+      POSTGRES_PASSWORD: citsci
+    ports:
+      # Publicado para poder mirar la base con psql desde el host. Quitalo si el 5432 ya esta en uso.
+      - "5432:5432"
+    volumes:
+      - citsci-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U citsci -d citsci"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  citsci-redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  citsci-api:
+    <<: *api
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+
+  # Los dos procesos que en produccion son programas de supervisord aparte.
+  citsci-worker:
+    <<: *api
+    command: ["python", "manage.py", "rqworker", "citisciapi"]
+
+  citsci-scheduler:
+    <<: *api
+    command: ["python", "manage.py", "run_scheduler"]
+
+volumes:
+  # Ojo si este fichero se trae con `include:`: el volumen lleva el prefijo del proyecto que
+  # incluye, asi que la app arrancada sola y arrancada desde fuera usan DOS bases de datos
+  # distintas. Para datos de desarrollo da igual; mejor saberlo antes de buscar una fila que si se
+  # habia guardado.
+  citsci-pgdata:
