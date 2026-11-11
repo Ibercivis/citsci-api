@@ -22,6 +22,10 @@ En desarrollo `DEBUG` esta activo y **los correos salen por la consola**, asi qu
 credenciales de AWS SES para ver la plataforma funcionando. Para parar y borrar los datos:
 `docker compose down -v`.
 
+La base arranca vacia. Para llenarla con una muestra pequena que **no copia nada de produccion**
+—cuatro proyectos, seis cuentas inventadas y sesenta observaciones construidas sobre registros
+publicos— ver [`LOCAL-DEV.md`](LOCAL-DEV.md).
+
 Dos avisos:
 
 - **No es la pila de produccion**, y no pretende serlo: produccion corre sobre el host con
