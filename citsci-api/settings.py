@@ -246,16 +246,29 @@ AUTHENTICATION_BACKENDS = [
 # As we added django.contrib.sites
 SITE_ID = 1
 
-# In production (DEBUG=False) mail goes out through SES, as it always has. In development it goes
-# to the console: looking at the platform locally should not require SES credentials, and a test
-# bounce counts against the sending reputation. The variable forces either one.
-EMAIL_BACKEND = env(
-    "EMAIL_BACKEND",
-    default=(
-        'django.core.mail.backends.console.EmailBackend' if DEBUG
-        else 'django_ses.SESBackend'
-    ),
-)
+# In production (DEBUG=False) mail goes out through SES, as it always has. Looking at the platform
+# locally should not require SES credentials, and a test bounce counts against the sending
+# reputation, so in development it never leaves the machine:
+#
+# * With EMAIL_HOST set — compose.yaml points it at the mail catcher — every message lands in a web
+#   inbox. The alternative, the console backend, splits the output between two containers: some
+#   mail is sent inline by a view and the rest by the rq worker, and a confirmation link has to be
+#   fished out of whichever log it happened to reach.
+# * Without it — `manage.py` run outside compose — the console backend, so nothing fails for want
+#   of an SMTP server.
+#
+# EMAIL_BACKEND forces any of the three.
+EMAIL_HOST = env("EMAIL_HOST", default="")
+if not DEBUG:
+    _email_backend = 'django_ses.SESBackend'
+elif EMAIL_HOST:
+    _email_backend = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_PORT = env.int("EMAIL_PORT", default=1025)
+    EMAIL_USE_TLS = False
+    EMAIL_USE_SSL = False
+else:
+    _email_backend = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = env("EMAIL_BACKEND", default=_email_backend)
 DEFAULT_FROM_EMAIL = env("FROM_EMAIL")
 EMAIL_SUBJECT_PREFIX = '[Geonity]'
 

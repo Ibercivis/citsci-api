@@ -5,8 +5,9 @@ The API, the web app and the admin panel on a laptop, with a small sample of dat
 
 Everything here is additive: a `Dockerfile` and a `compose.yaml` that start the stack, and the
 dataset — one management command, `project/management/commands/seed_local.py`, and the public
-snapshot it plants. Two settings became readable from the environment, `ALLOWED_HOSTS` and
-`EMAIL_BACKEND`; without those variables they are what they already were in production.
+snapshot it plants. Three settings became readable from the environment — `ALLOWED_HOSTS`,
+`EMAIL_BACKEND` and `EMAIL_HOST`; without those variables they are what they already were in
+production.
 
 ## Why there is no production data in here
 
@@ -44,14 +45,18 @@ docker compose up -d --build
 docker compose exec citsci-api python manage.py seed_local
 ```
 
-That is the whole API: PostgreSQL with PostGIS, Redis, the API, the `django-rq` worker and the
-scheduler. Migrations run on start.
+That is the whole API: PostgreSQL with PostGIS, Redis, a mail catcher, the API, the `django-rq`
+worker and the scheduler. Migrations run on start.
 
 - API docs: <http://localhost:8000/api/docs/>
 - Django admin: <http://localhost:8000/admin/>
+- Inbox: <http://localhost:8027/>
 
-Mail is printed to the API's console (`DEBUG` is on), so nothing leaves the machine and no SES
-credentials are needed. To read it: `docker compose logs -f citsci-api`.
+**Mail goes to the inbox, not out of the machine**, so no SES credentials are needed. `mailpit`
+catches it, as it does in the other Ibercivis local environments; set `MAIL_UI_PORT` if 8027 is
+taken. Reading it from a log would not do: some mail is sent inline by a view and the rest by the
+`rq` worker, so the output would split between two containers, and a confirmation link printed into
+a log is gone the moment the container restarts.
 
 ## What the sample contains
 
@@ -110,6 +115,11 @@ reserved `.invalid` domain, so none of them can reach a mailbox.
 `ACCOUNT_EMAIL_VERIFICATION` stays `'mandatory'` as in production, so the seeded accounts are given
 confirmed `EmailAddress` rows and can sign in at once. Each also gets a DRF token, which is what the
 API authenticates with.
+
+An account registered by hand through `POST /api/users/registration/` is not confirmed, and that is
+what the inbox is for: the activation mail arrives there, and the link opens a page with a button
+rather than activating on its own — `ActivateAccountView` does that deliberately, so a link-preview
+bot cannot confirm somebody's account.
 
 ## The web app and the admin panel
 

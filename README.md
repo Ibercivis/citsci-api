@@ -9,17 +9,19 @@ Docker is all it needs:
 docker compose up --build
 ```
 
-That brings up five services: PostgreSQL with PostGIS, Redis, the API, the `django-rq` worker and
-the scheduler — the same three processes supervisord runs in production (see `deploy.sh`).
-Migrations are applied on start.
+That brings up six services: PostgreSQL with PostGIS, Redis, a mail catcher, the API, the
+`django-rq` worker and the scheduler — the last three are the same processes supervisord runs in
+production (see `deploy.sh`). Migrations are applied on start.
 
 - API: <http://localhost:8000/>
 - OpenAPI docs: <http://localhost:8000/api/docs/>
 - Admin: <http://localhost:8000/admin/>, with a user created by hand:
   `docker compose exec citsci-api python manage.py createsuperuser`
+- Inbox: <http://localhost:8027/>
 
-In development `DEBUG` is on and **mail is printed to the console**, so no AWS SES credentials are
-needed to see the platform working. To stop and delete the data: `docker compose down -v`.
+In development **mail goes to the inbox instead of leaving the machine**, so no AWS SES credentials
+are needed to see the platform working, and the activation link of an account registered through
+the form is one click away. To stop and delete the data: `docker compose down -v`.
 
 The database starts empty. To fill it with a small sample that **copies nothing from production** —
 four projects, six invented accounts and sixty observations built on public records — see
