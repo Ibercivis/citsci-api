@@ -3,9 +3,10 @@
 The API, the web app and the admin panel on a laptop, with a small sample of data and
 **nothing copied from production**.
 
-Everything here is additive. `Dockerfile` and `compose.yaml` were already in this repository;
-what this adds is the dataset: one management command, `project/management/commands/seed_local.py`,
-and the public snapshot it plants.
+Everything here is additive: a `Dockerfile` and a `compose.yaml` that start the stack, and the
+dataset — one management command, `project/management/commands/seed_local.py`, and the public
+snapshot it plants. Two settings became readable from the environment, `ALLOWED_HOSTS` and
+`EMAIL_BACKEND`; without those variables they are what they already were in production.
 
 ## Why there is no production data in here
 
