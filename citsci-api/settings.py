@@ -42,9 +42,9 @@ SECRET_KEY = env("SECRET_KEY", default="django-insecure-!rihhd3lxg-!3x8+ea*3)n9n
 # Auto-enables DEBUG when running via manage.py runserver, unless overridden by env var
 import sys
 DEBUG = env.bool("DEBUG", default='runserver' in sys.argv)
-# Sin la variable, la lista es la de produccion y el despliegue no cambia. Con ella, un arranque
-# local puede responder a localhost: sin este hueco, cualquier nombre que no sea uno de los tres
-# recibe un 400 de Django antes de llegar a ninguna vista.
+# Without the variable the list is the production one and the deployment does not change. With it,
+# a local start can answer on localhost: without this opening, any name other than the three gets a
+# 400 from Django before reaching a view.
 ALLOWED_HOSTS = env.list(
     "ALLOWED_HOSTS",
     default=['api.ibercivis.es', 'geonity.ibercivis.es', 'geonity-backend.ibercivis.es'],
@@ -246,9 +246,9 @@ AUTHENTICATION_BACKENDS = [
 # As we added django.contrib.sites
 SITE_ID = 1
 
-# En produccion (DEBUG=False) los correos salen por SES, como hasta ahora. En desarrollo salen por
-# la consola: mirar la plataforma en local no deberia exigir credenciales de SES, y un rebote de
-# pruebas cuenta contra la reputacion de envio. La variable permite forzar cualquiera de los dos.
+# In production (DEBUG=False) mail goes out through SES, as it always has. In development it goes
+# to the console: looking at the platform locally should not require SES credentials, and a test
+# bounce counts against the sending reputation. The variable forces either one.
 EMAIL_BACKEND = env(
     "EMAIL_BACKEND",
     default=(

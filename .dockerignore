@@ -1,4 +1,4 @@
-# El contexto de build sin esto son 48 MB, y 46 son .git.
+# Without this the build context is 48 MB, 46 of them .git.
 .git
 .gitignore
 
@@ -6,7 +6,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Secretos y datos locales: nunca dentro de la imagen.
+# Secrets and local data: never inside the image.
 *env
 local.env
 *.sqlite3

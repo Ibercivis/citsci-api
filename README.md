@@ -1,38 +1,37 @@
 # citsci-api
 Citizen Science Application API
 
-## Arranque local
+## Running locally
 
-Solo necesita Docker:
+Docker is all it needs:
 
 ```sh
 docker compose up --build
 ```
 
-Deja en pie cinco servicios: PostgreSQL con PostGIS, Redis, el API, el worker de `django-rq` y el
-scheduler — los mismos tres procesos que supervisord corre en produccion (ver `deploy.sh`). Las
-migraciones se aplican solas al arrancar.
+That brings up five services: PostgreSQL with PostGIS, Redis, the API, the `django-rq` worker and
+the scheduler — the same three processes supervisord runs in production (see `deploy.sh`).
+Migrations are applied on start.
 
 - API: <http://localhost:8000/>
-- Documentacion OpenAPI: <http://localhost:8000/api/docs/>
-- Admin: <http://localhost:8000/admin/>, con un usuario creado a mano:
+- OpenAPI docs: <http://localhost:8000/api/docs/>
+- Admin: <http://localhost:8000/admin/>, with a user created by hand:
   `docker compose exec citsci-api python manage.py createsuperuser`
 
-En desarrollo `DEBUG` esta activo y **los correos salen por la consola**, asi que no hacen falta
-credenciales de AWS SES para ver la plataforma funcionando. Para parar y borrar los datos:
-`docker compose down -v`.
+In development `DEBUG` is on and **mail is printed to the console**, so no AWS SES credentials are
+needed to see the platform working. To stop and delete the data: `docker compose down -v`.
 
-La base arranca vacia. Para llenarla con una muestra pequena que **no copia nada de produccion**
-—cuatro proyectos, seis cuentas inventadas y sesenta observaciones construidas sobre registros
-publicos— ver [`LOCAL-DEV.md`](LOCAL-DEV.md).
+The database starts empty. To fill it with a small sample that **copies nothing from production** —
+four projects, six invented accounts and sixty observations built on public records — see
+[`LOCAL-DEV.md`](LOCAL-DEV.md).
 
-Dos avisos:
+Two warnings:
 
-- **No es la pila de produccion**, y no pretende serlo: produccion corre sobre el host con
-  supervisord. Aqui las contrasenas estan a la vista y el servidor es el de desarrollo de Django.
-- El codigo va montado dentro del contenedor, asi que **un `citsci-api/local.env` del host tambien
-  se lee ahi** y pisa lo que diga el `compose`. Si algo no cuadra con la configuracion, mirar ese
-  fichero primero.
+- **This is not the production stack**, and does not try to be: production runs on the host under
+  supervisord. Here the passwords are in plain sight and the server is Django's development server.
+- The code is mounted inside the container, so **a `citsci-api/local.env` on the host is read in
+  there too** and overrides whatever the `compose` file says. If the configuration does not add up,
+  look at that file first.
 
 ## OpenAPI (Swagger)
 
