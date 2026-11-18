@@ -42,7 +42,13 @@ SECRET_KEY = env("SECRET_KEY", default="django-insecure-!rihhd3lxg-!3x8+ea*3)n9n
 # Auto-enables DEBUG when running via manage.py runserver, unless overridden by env var
 import sys
 DEBUG = env.bool("DEBUG", default='runserver' in sys.argv)
-ALLOWED_HOSTS = ['api.ibercivis.es', 'geonity.ibercivis.es', 'geonity-backend.ibercivis.es']
+# Without the variable the list is the production one and the deployment does not change. With it,
+# a local start can answer on localhost: without this opening, any name other than the three gets a
+# 400 from Django before reaching a view.
+ALLOWED_HOSTS = env.list(
+    "ALLOWED_HOSTS",
+    default=['api.ibercivis.es', 'geonity.ibercivis.es', 'geonity-backend.ibercivis.es'],
+)
 
 # For the API
 BASE_URL = env("BASE_URL")
@@ -66,7 +72,7 @@ INSTALLED_APPS = [
     "allauth",
     "allauth.account",
     "django_countries",
-    "allauth.socialaccount", # Para implementar autenticación usando redes sociales
+    "allauth.socialaccount", # Sign-in through social networks
     "allauth.socialaccount.providers.google",
 
     "django_rq",
@@ -191,9 +197,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Allow tokens for authentication
 REST_FRAMEWORK = {
-    # Ojo: aqui habia un segundo 'DEFAULT_PERMISSION_CLASSES': AllowAny que quedaba pisado por el
-    # de mas abajo (en un dict literal gana la ultima clave). El comportamiento no cambia; se
-    # borra para que nadie lea la equivocada.
+    # Note: there used to be a second 'DEFAULT_PERMISSION_CLASSES': AllowAny here, overridden by
+    # the one below (in a dict literal the last key wins). Behaviour is unchanged; it is gone so
+    # nobody reads the wrong one.
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
     ],
@@ -208,8 +214,8 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.TokenAuthentication'
     ],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-    # Vacío a propósito: el throttling se declara vista a vista (de momento solo en los
-    # endpoints anónimos del QR), no queremos limitar el resto de la API.
+    # Empty on purpose: throttling is declared view by view (so far only on the anonymous QR
+    # endpoints); the rest of the API is not limited.
     'DEFAULT_THROTTLE_CLASSES': [],
     'DEFAULT_THROTTLE_RATES': {
         'anon_form': '60/min',
@@ -240,10 +246,29 @@ AUTHENTICATION_BACKENDS = [
 # As we added django.contrib.sites
 SITE_ID = 1
 
-# email to show in the terminal
-# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-# email using amazon ses
-EMAIL_BACKEND = 'django_ses.SESBackend'
+# In production (DEBUG=False) mail goes out through SES, as it always has. Looking at the platform
+# locally should not require SES credentials, and a test bounce counts against the sending
+# reputation, so in development it never leaves the machine:
+#
+# * With EMAIL_HOST set — compose.yaml points it at the mail catcher — every message lands in a web
+#   inbox. The alternative, the console backend, splits the output between two containers: some
+#   mail is sent inline by a view and the rest by the rq worker, and a confirmation link has to be
+#   fished out of whichever log it happened to reach.
+# * Without it — `manage.py` run outside compose — the console backend, so nothing fails for want
+#   of an SMTP server.
+#
+# EMAIL_BACKEND forces any of the three.
+EMAIL_HOST = env("EMAIL_HOST", default="")
+if not DEBUG:
+    _email_backend = 'django_ses.SESBackend'
+elif EMAIL_HOST:
+    _email_backend = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_PORT = env.int("EMAIL_PORT", default=1025)
+    EMAIL_USE_TLS = False
+    EMAIL_USE_SSL = False
+else:
+    _email_backend = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = env("EMAIL_BACKEND", default=_email_backend)
 DEFAULT_FROM_EMAIL = env("FROM_EMAIL")
 EMAIL_SUBJECT_PREFIX = '[Geonity]'
 
@@ -297,28 +322,28 @@ RQ_QUEUES = {
     }
 }
 
-# Durante los tests la cola apunta a otra DB de Redis. Los tests usan su propia base de datos, pero
-# django_rq NO se sustituye solo: `manage.py test` estaba encolando trabajos reales en la cola de
-# produccion. El 2026-09-10 aparecieron 8 jobs basura de la suite (project-milestone de proyectos
-# que solo existen en la BD de test). Nadie consume la DB 15, asi que ahi se quedan y caducan.
+# During tests the queue points at another Redis DB. Tests get their own database, but django_rq
+# is NOT swapped out on its own: `manage.py test` was enqueueing real jobs on the production queue.
+# On 2026-09-10 eight junk jobs from the suite turned up (project-milestone for projects that only
+# exist in the test database). Nothing consumes DB 15, so they sit there and expire.
 if 'test' in sys.argv:
     RQ_QUEUES['citisciapi']['DB'] = 15
 
 ADMINS = [('Ibercivis', 'frasanz@ibercivis.es')]
 
-# Destinatarios de los avisos de plataforma: proyecto creado/publicado/despublicado, organizacion
-# nueva y resumen periodico. Lista explicita y NO derivada de is_staff a proposito: entre los
-# superusuarios hay cuentas de prueba con dominios que no existen, y cada rebote cuenta contra la
-# reputacion de envio de SES. Distinto de ADMINS, que Django usa para los tracebacks.
+# Who receives the platform notices: project created/published/unpublished, new organization, and
+# the periodic digest. An explicit list and NOT derived from is_staff on purpose: the superusers
+# include test accounts on domains that do not exist, and every bounce counts against the SES
+# sending reputation. Different from ADMINS, which Django uses for tracebacks.
 PLATFORM_NOTIFICATION_EMAILS = env.list('PLATFORM_NOTIFICATION_EMAILS', default=[])
 
-# Zona horaria de los envios programados. TIME_ZONE del proyecto sigue siendo UTC y no se toca:
-# esto solo decide a que hora local sale el resumen periodico. Con 'Europe/Madrid' el cambio de
-# hora se gestiona solo (UTC+2 en verano, UTC+1 en invierno).
+# Time zone of the scheduled sends. The project's TIME_ZONE stays UTC and is not touched: this
+# only decides the local hour the periodic digest goes out. With 'Europe/Madrid' the clock change
+# takes care of itself (UTC+2 in summer, UTC+1 in winter).
 PLATFORM_NOTIFICATION_TIMEZONE = env('PLATFORM_NOTIFICATION_TIMEZONE', default='Europe/Madrid')
 
-# Direccion real de contacto. Va como Reply-To SOLO en los correos que invitan a responder (el aviso
-# a un proyecto publicado sin actividad), donde el pie habitual de "no responder" no vale.
+# A real contact address. Used as Reply-To ONLY on the mails that invite an answer (the notice to
+# a published project with no activity), where the usual "do not reply" footer will not do.
 PLATFORM_CONTACT_EMAIL = env('PLATFORM_CONTACT_EMAIL', default='')
 
 LOGGING = {

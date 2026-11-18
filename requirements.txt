@@ -35,3 +35,13 @@ django-db-logger==0.1.13
 openpyxl==3.1.5
 odfpy==1.4.1
 rq-scheduler==0.13.1
+
+# These three were missing. Startup imports them — the postgis backend needs a driver,
+# users.models uses CountryField, and all four apps have ImageFields — so they are installed by
+# hand on the server, and what did not work was `pip install -r requirements.txt` on a fresh
+# machine: Django could not even import settings.
+# psycopg2-binary and not psycopg2 on purpose: it is a wheel, so the image needs no compiler. If the
+# server prefers psycopg2 compiled, change this line and everything else stays as it is.
+django-countries==7.6.1
+Pillow==11.0.0
+psycopg2-binary==2.9.10

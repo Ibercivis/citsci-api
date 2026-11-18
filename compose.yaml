@@ -1,0 +1,121 @@
+# Local start for the API. `docker compose up` brings up the database with PostGIS, Redis, a mail
+# catcher, the API, the django-rq worker and the scheduler: the last three are the same processes
+# supervisord runs in production (see deploy.sh).
+#
+# Not a production stack, and not trying to be: passwords in plain sight, Django's development
+# server, DEBUG on. What it solves is that the repository had no way to start the API at all.
+#
+# The services carry a `citsci-` prefix on purpose: this file is also meant to be pulled into
+# another `compose` with `include:`, where every service lands in one project. Unprefixed, another
+# app's `db` or `redis` would collide with these.
+name: citsci-api
+
+x-api: &api
+  build: .
+  image: citsci-api:dev
+  environment:
+    # DEBUG set explicitly, not left to the default: settings.py infers it from whether `runserver`
+    # is on the command line, so the worker and the scheduler would start with DEBUG=False. It
+    # matters because the worker is what sends the mail — without this it would try to reach SES
+    # with the filler credentials below instead of printing to the console.
+    DEBUG: "True"
+    # ALLOWED_HOSTS: without this variable settings.py uses the production list, which holds no
+    # local name; on `localhost` the API would answer 400.
+    ALLOWED_HOSTS: localhost,127.0.0.1,citsci-api
+    BASE_URL: http://localhost:8000
+    DB_NAME: citsci
+    DB_USER: citsci
+    DB_PASSWORD: citsci
+    DB_HOST: citsci-db
+    REDIS_HOST: citsci-redis
+    # Mail goes to the catcher, not to SES, so these four are filler: they are here because
+    # settings.py reads them without a default, not because anything is sent.
+    FROM_EMAIL: dev@localhost
+    AWS_ACCESS_KEY_ID: dev
+    AWS_SECRET_ACCESS_KEY: dev
+    AWS_SES_REGION_NAME: eu-west-1
+    AWS_SES_REGION_ENDPOINT: https://email.eu-west-1.amazonaws.com
+    # Mail catcher, and it has to be set for both: a view sends some of it and the rq worker the
+    # rest, so the console backend would split the output between two sets of logs.
+    EMAIL_HOST: citsci-mailpit
+    EMAIL_PORT: "1025"
+    CLIENT_API_KEY_MOBILE: dev-mobile
+    CLIENT_API_KEY_WEB: dev-web
+  volumes:
+    # The code, mounted: the development server reloads without rebuilding the image.
+    - .:/app
+  depends_on:
+    citsci-db:
+      condition: service_healthy
+    citsci-redis:
+      condition: service_healthy
+    citsci-mailpit:
+      condition: service_started
+
+services:
+  citsci-db:
+    # The official postgis/postgis images are amd64 ONLY (checked with
+    # `docker manifest inspect postgis/postgis:16-3.5`), so on an ARM laptop they run emulated.
+    # This is the same maintainer's multi-arch build, and gives the same PostGIS 3.5.
+    image: imresamu/postgis:16-3.5
+    environment:
+      POSTGRES_DB: citsci
+      POSTGRES_USER: citsci
+      POSTGRES_PASSWORD: citsci
+    ports:
+      # Published so the database can be read with psql from the host. Drop it if 5432 is in use.
+      - "5432:5432"
+    volumes:
+      - citsci-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U citsci -d citsci"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Catches every mail the application sends and shows it in a web inbox at http://localhost:8027/
+  # instead of delivering it anywhere. ACCOUNT_EMAIL_VERIFICATION is 'mandatory' here as in
+  # production, so a confirmation link is one click away rather than buried in a log, and nothing
+  # can reach a real address by accident.
+  #
+  # 8027 because the catchers of two other Ibercivis stacks already hold 8025 and 8026, and
+  # `include:` can bring more than one of them up at once. MAIL_UI_PORT moves it.
+  citsci-mailpit:
+    image: axllent/mailpit:v1.21.8
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    ports:
+      - "${MAIL_UI_PORT:-8027}:8025"
+
+  citsci-redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  citsci-api:
+    <<: *api
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+
+  # The two processes that in production are separate supervisord programs.
+  citsci-worker:
+    <<: *api
+    command: ["python", "manage.py", "rqworker", "citisciapi"]
+
+  citsci-scheduler:
+    <<: *api
+    command: ["python", "manage.py", "run_scheduler"]
+
+volumes:
+  # Careful if this file is pulled in with `include:`: the volume takes the prefix of the including
+  # project, so the app started on its own and started from outside use TWO different databases.
+  # It makes no difference to development data; better to know before hunting for a row that was
+  # saved after all.
+  citsci-pgdata:

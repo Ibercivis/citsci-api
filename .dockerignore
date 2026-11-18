@@ -1,0 +1,19 @@
+# Without this the build context is 48 MB, 46 of them .git.
+.git
+.gitignore
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Secrets and local data: never inside the image.
+*env
+local.env
+*.sqlite3
+media/
+static/
+uwsgi.ini
+
+Dockerfile
+.dockerignore
+compose.yaml
