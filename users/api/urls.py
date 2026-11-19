@@ -11,6 +11,7 @@ from users.api.views import (
     AcceptInvitationUnifiedView, RejectInvitationUnifiedView, DebugLoginView,
     GoogleLoginView, ConsentView, NewsletterView, NewsletterUnsubscribeView
 )
+from users.ibercivis_account import IbercivisAccountLoginView
 
 urlpatterns = [
     path('users/activate-account/<str:key>/', ActivateAccountView.as_view(), name='activate-account'),
@@ -19,6 +20,7 @@ urlpatterns = [
     path('users/account-confirm-email/', ConfirmEmailView.as_view(), name='account_email_verification_sent'),
     path('users/authentication/login/', DebugLoginView.as_view(), name='rest_login'),
     path('users/auth/google/', GoogleLoginView.as_view(), name='google_login'),
+    path('users/auth/ibercivis/', IbercivisAccountLoginView.as_view(), name='ibercivis_account_login'),
     path('users/authentication/', include('dj_rest_auth.urls')),
     path('users/authentication/password/reset/', include('django.contrib.auth.urls')),
     path('users/authentication/password/reset/confirm/<str:uidb64>/<str:token>', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
