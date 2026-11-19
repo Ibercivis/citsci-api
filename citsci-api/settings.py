@@ -74,6 +74,7 @@ INSTALLED_APPS = [
     "django_countries",
     "allauth.socialaccount", # Sign-in through social networks
     "allauth.socialaccount.providers.google",
+    "allauth.socialaccount.providers.openid_connect",  # The Ibercivis account, when configured
 
     "django_rq",
 
@@ -292,6 +293,44 @@ SOCIALACCOUNT_PROVIDERS = {
         }
     }
 }
+
+# Signing in with an Ibercivis account: the sign-in service the Ibercivis citizen science sites
+# share, reached over OpenID Connect. Declared only when there is an issuer to reach, so a
+# deployment without one is exactly what it was.
+#
+# The web app sends the person to the service and comes back with an authorization code;
+# `POST /api/users/auth/ibercivis/` redeems it here, with this client's secret, and answers with
+# the same token as a password sign-in.
+IBERCIVIS_ACCOUNT_ISSUER = env('IBERCIVIS_ACCOUNT_ISSUER', default='')
+
+# The web app's callback page. The code was issued to that address, so the token request has to
+# name it again, and the server pins it rather than taking it from the request.
+IBERCIVIS_ACCOUNT_REDIRECT_URI = env('IBERCIVIS_ACCOUNT_REDIRECT_URI', default='')
+
+# The name the provider is registered under, and the `provider` of every SocialAccount it creates.
+IBERCIVIS_ACCOUNT_PROVIDER = 'ibercivis'
+
+if IBERCIVIS_ACCOUNT_ISSUER:
+    SOCIALACCOUNT_PROVIDERS['openid_connect'] = {
+        # Not allauth's default `openid profile email`: the service grants this client only the
+        # scopes it was registered with, and refuses the whole request over one it did not.
+        'SCOPE': ['openid', 'email'],
+        'APPS': [
+            {
+                'provider_id': IBERCIVIS_ACCOUNT_PROVIDER,
+                'name': 'Ibercivis',
+                'client_id': env('IBERCIVIS_ACCOUNT_CLIENT_ID', default=''),
+                'secret': env('IBERCIVIS_ACCOUNT_CLIENT_SECRET', default=''),
+                'settings': {
+                    'server_url': IBERCIVIS_ACCOUNT_ISSUER,
+                    # The account's details come from the ID token, whose signature, issuer,
+                    # audience and expiry allauth checks, not from a second request to userinfo.
+                    'fetch_userinfo': False,
+                },
+            },
+        ],
+    }
+
 SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
 SOCIALACCOUNT_ADAPTER = 'users.adapters.CustomSocialAccountAdapter'
 
