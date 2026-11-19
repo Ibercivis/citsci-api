@@ -288,3 +288,15 @@ class AnAddressAlreadyInUse(SignInCase):
         )
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(Token.objects.get(key=response.json()['key']).user, self.veteran)
+
+
+class WhoAmI(SignInCase):
+    """`/api/users/authentication/user/` names the Ibercivis account a user is, if any."""
+
+    def test_an_account_from_an_ibercivis_sign_in_shows_its_identifier(self):
+        self.assertEqual(self.me(self.sign_in().json()['key'])['ibercivis_account_id'], IBERCIVIS_ACCOUNT_ID)
+
+    def test_an_account_with_only_a_password_shows_none(self):
+        user = User.objects.create_user('veteran', 'veteran@geonity.invalid', 'a-password')
+
+        self.assertIsNone(self.me(Token.objects.create(user=user).key)['ibercivis_account_id'])
