@@ -121,6 +121,45 @@ what the inbox is for: the activation mail arrives there, and the link opens a p
 rather than activating on its own — `ActivateAccountView` does that deliberately, so a link-preview
 bot cannot confirm somebody's account.
 
+## Signing in with an Ibercivis account
+
+The Ibercivis citizen science sites share one sign-in service, reached over OpenID Connect; why,
+and the service itself, live in
+[`Ibercivis/citsci-federation`](https://github.com/Ibercivis/citsci-federation). Here it is a
+second way in, next to the email and password, and it is off unless these are set:
+
+| Variable | |
+|---|---|
+| `IBERCIVIS_ACCOUNT_ISSUER` | The service's issuer URL. Without it the provider is not declared and `POST /api/users/auth/ibercivis/` answers 404. |
+| `IBERCIVIS_ACCOUNT_CLIENT_ID`, `IBERCIVIS_ACCOUNT_CLIENT_SECRET` | This API's client at the service. |
+| `IBERCIVIS_ACCOUNT_REDIRECT_URI` | The web app's callback page, `<web app>/auth/ibercivis/callback`. |
+
+The web app sends the person to the service and comes back to its callback page with an
+authorization code. It posts that code, with the PKCE verifier it kept, to
+`POST /api/users/auth/ibercivis/`. The API redeems it with its own secret, checks the ID token's
+signature against the service's published keys, and answers with the same `{key}` a password
+sign-in answers with. `/api/users/authentication/user/` then shows `ibercivis_account_id`.
+
+What an account created this way is:
+
+- No usable password, not staff, not superuser.
+- Keyed by the identifier the service sends, and nothing about how the person signed in there —
+  with Google, with ORCID, with a password held by the service — is stored.
+- **An address already held by an account here is refused**, under `email`: no second account, and
+  no linking by email. The existing account keeps signing in with its password.
+
+**`POST /api/users/registration/` stays open**, and that is a decision, not an oversight. The web
+app no longer offers a sign-up form, but the mobile app still creates its accounts there. It closes
+when the mobile app signs in with an Ibercivis account.
+
+**`POST /api/users/auth/google/` still creates accounts**, for the same reason. The web app keeps
+its Google button, because accounts made through it have no password and no other way in, and
+nothing in that request tells a new address from a returning one. The mobile app calls the same
+endpoint, so refusing sign-ups there would close the mobile app's too.
+
+`compose.yaml` here sets none of these: started on its own, the API has no service to reach. The
+stack in `Ibercivis/citsci-federation` that runs it next to the service sets all four.
+
 ## The web app and the admin panel
 
 They live in [`Ibercivis/Geonity`](https://github.com/Ibercivis/Geonity), branch `federation`. See
