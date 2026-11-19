@@ -27,6 +27,10 @@ from rest_framework import serializers
 from rest_framework.exceptions import NotFound
 
 
+# dj-rest-auth's own message, so it translates the same way.
+ADDRESS_IN_USE = _('User is already registered with this e-mail address.')
+
+
 class IbercivisAccountAdapter(OpenIDConnectOAuth2Adapter):
     def __init__(self, request):
         super().__init__(request, settings.IBERCIVIS_ACCOUNT_PROVIDER)
@@ -57,6 +61,13 @@ class IbercivisAccountLoginSerializer(SocialLoginSerializer):
             # An ID token that fails its checks: signature, issuer, audience, expiry.
             # dj-rest-auth lets this one through as a server error.
             raise serializers.ValidationError(_('Incorrect value')) from refused
+        except serializers.ValidationError as refused:
+            # An address already held by an account here: no second account, and no
+            # linking. dj-rest-auth says so in a translated sentence; moved under
+            # `email` so the web app can tell it apart in any language.
+            if ADDRESS_IN_USE in [str(message) for message in refused.detail]:
+                raise serializers.ValidationError({'email': [ADDRESS_IN_USE]}) from refused
+            raise
 
 
 class IbercivisAccountLoginView(SocialLoginView):

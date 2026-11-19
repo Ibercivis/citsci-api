@@ -14,9 +14,12 @@ import time
 from unittest import mock
 
 import jwt
+from allauth.account.models import EmailAddress
+from allauth.socialaccount.models import SocialAccount
 from cryptography.hazmat.primitives.asymmetric import rsa
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
+from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
 ISSUER = 'http://ibercivis.test/realms/citsci'
@@ -205,3 +208,83 @@ class RefusingTheRequest(SignInCase):
     @override_settings(SOCIALACCOUNT_PROVIDERS={})
     def test_without_an_ibercivis_account_configured_the_address_does_not_exist(self):
         self.assertEqual(self.sign_in().status_code, 404)
+
+
+# Every claim the service puts in the ID token it issues to this application:
+# OpenID Connect's own, the identifier twice, the address. None says which
+# Google account, ORCID or password the person used to sign in there.
+CLAIMS_THE_SERVICE_SENDS = {
+    'iss', 'aud', 'azp', 'iat', 'exp', 'auth_time', 'jti', 'typ', 'sid', 'at_hash', 'acr',
+    'sub', 'voperson_id', 'email', 'email_verified',
+}
+
+
+class TheAccountItCreates(SignInCase):
+    def arrival(self):
+        response = self.sign_in()
+        self.assertEqual(response.status_code, 200, response.content)
+        return User.objects.get(email=SAYS['email'])
+
+    def test_it_has_no_password_and_no_privileges(self):
+        user = self.arrival()
+
+        self.assertFalse(user.has_usable_password())
+        self.assertFalse(user.is_staff)
+        self.assertFalse(user.is_superuser)
+
+    def test_it_is_keyed_by_the_identifier(self):
+        user = self.arrival()
+
+        [account] = SocialAccount.objects.filter(user=user)
+        self.assertEqual((account.provider, account.uid), ('ibercivis', IBERCIVIS_ACCOUNT_ID))
+
+    def test_it_stores_nothing_about_how_the_person_signed_in_there(self):
+        user = self.arrival()
+
+        [account] = SocialAccount.objects.filter(user=user)
+        self.assertEqual(list(account.extra_data), ['id_token'])
+        self.assertLessEqual(set(account.extra_data['id_token']), CLAIMS_THE_SERVICE_SENDS)
+
+    def test_the_second_sign_in_lands_on_the_same_account_whatever_the_address_says(self):
+        first = self.sign_in().json()['key']
+        second = self.sign_in(an_id_token(email='renamed@geonity.invalid')).json()['key']
+
+        self.assertEqual(Token.objects.get(key=first).user, Token.objects.get(key=second).user)
+        self.assertEqual(User.objects.count(), 1)
+
+
+class AnAddressAlreadyInUse(SignInCase):
+    """Somebody who already signs in here with a password, arriving with the same address.
+
+    They get no second account, and the address does not connect the two: an
+    address says where to reach somebody, not who they are.
+    """
+
+    def setUp(self):
+        self.veteran = User.objects.create_user('veteran', SAYS['email'], 'the-password-they-had')
+        EmailAddress.objects.create(user=self.veteran, email=SAYS['email'], verified=True, primary=True)
+
+    def test_it_is_refused_with_a_reason_the_web_app_can_show(self):
+        response = self.sign_in()
+
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertNotIn('key', response.json())
+        # Under `email`, which nothing posted here carries, so the web app can tell
+        # this refusal from the others whatever language the message is in.
+        self.assertEqual(list(response.json()), ['email'])
+
+    def test_it_creates_nothing_and_connects_nothing(self):
+        self.sign_in()
+
+        self.assertEqual(list(User.objects.values_list('username', flat=True)), ['veteran'])
+        self.assertFalse(SocialAccount.objects.exists())
+
+    def test_the_existing_account_still_signs_in_with_its_password(self):
+        self.sign_in()
+
+        response = APIClient().post(
+            '/api/users/authentication/login/',
+            {'email': SAYS['email'], 'password': 'the-password-they-had'}, format='json',
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(Token.objects.get(key=response.json()['key']).user, self.veteran)
