@@ -204,6 +204,13 @@ class UserDetailsSerializer(serializers.ModelSerializer):
     privacy_accepted_at = serializers.DateTimeField(source='profile.privacy_accepted_at', read_only=True)
     privacy_version = serializers.CharField(source='profile.privacy_version', read_only=True)
     newsletter_subscribed = serializers.BooleanField(source='profile.newsletter_subscribed', read_only=True)
+    # The identifier of the Ibercivis account this user signs in with, or null. Here and not on
+    # ProfileSerializer, for the same reason as is_staff below.
+    ibercivis_account_id = serializers.SerializerMethodField()
+
+    def get_ibercivis_account_id(self, user):
+        account = user.socialaccount_set.filter(provider=settings.IBERCIVIS_ACCOUNT_PROVIDER).first()
+        return account.uid if account else None
 
     class Meta:
         model = User
@@ -212,7 +219,8 @@ class UserDetailsSerializer(serializers.ModelSerializer):
         # UserSerializer, que sirve /api/users/, /api/users/<pk>/ y /api/users/list/, y ahi seria
         # publicar a cualquier autenticado la lista de quien administra la plataforma.
         fields = ['pk', 'email', 'is_staff', 'terms_accepted_at', 'terms_version',
-                  'privacy_accepted_at', 'privacy_version', 'newsletter_subscribed']
+                  'privacy_accepted_at', 'privacy_version', 'newsletter_subscribed',
+                  'ibercivis_account_id']
         read_only_fields = fields
 
 
