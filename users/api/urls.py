@@ -16,10 +16,7 @@ from users.ibercivis_account import IbercivisAccountLoginView
 urlpatterns = [
     path('users/activate-account/<str:key>/', ActivateAccountView.as_view(), name='activate-account'),
     path('users/registration/account-confirm-email/<str:key>/', CustomConfirmEmailView.as_view(), name='account_confirm_email'),
-    # Open on purpose. The web app no longer offers a sign-up form -- a newcomer there signs in with
-    # an Ibercivis account -- but the mobile app still creates its accounts here and has no other
-    # way to. This closes when the mobile app signs in with an Ibercivis account, and not before;
-    # users/test_registration_stays_open.py holds it open until then.
+    # Open on purpose: see LOCAL-DEV.md, and users/test_registration_stays_open.py.
     path('users/registration/', include('dj_rest_auth.registration.urls')),
     path('users/account-confirm-email/', ConfirmEmailView.as_view(), name='account_email_verification_sent'),
     path('users/authentication/login/', DebugLoginView.as_view(), name='rest_login'),

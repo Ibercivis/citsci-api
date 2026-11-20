@@ -1,4 +1,4 @@
-"""The API keeps creating accounts at `POST /api/users/registration/`; `users/api/urls.py`
+"""The API keeps creating accounts at `POST /api/users/registration/`; `LOCAL-DEV.md`
 says why. This case is here so that closing the web form is not mistaken for a reason to
 tidy the endpoint away.
 """

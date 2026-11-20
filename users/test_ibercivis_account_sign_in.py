@@ -1,9 +1,5 @@
-"""Signing in with an Ibercivis account, through `POST /api/users/auth/ibercivis/`.
-
-The web app sends the person to the Ibercivis sign-in service, comes back with an
-authorization code, and posts it here with the PKCE verifier it kept. The API
-redeems the code with its own secret and answers with the token a password
-sign-in answers with.
+"""Signing in with an Ibercivis account, through `POST /api/users/auth/ibercivis/`;
+the flow is described in `LOCAL-DEV.md`.
 
 No case talks to the network. The service's three answers this needs -- its
 discovery document, its token endpoint and its signing keys -- are played by

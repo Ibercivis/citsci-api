@@ -294,13 +294,8 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
-# Signing in with an Ibercivis account: the sign-in service the Ibercivis citizen science sites
-# share, reached over OpenID Connect. Declared only when there is an issuer to reach, so a
-# deployment without one is exactly what it was.
-#
-# The web app sends the person to the service and comes back with an authorization code;
-# `POST /api/users/auth/ibercivis/` redeems it here, with this client's secret, and answers with
-# the same token as a password sign-in.
+# Signing in with an Ibercivis account (see LOCAL-DEV.md). Declared only when there is an
+# issuer to reach, so a deployment without one is exactly what it was.
 IBERCIVIS_ACCOUNT_ISSUER = env('IBERCIVIS_ACCOUNT_ISSUER', default='')
 
 # The web app's callback page. The code was issued to that address, so the token request has to
