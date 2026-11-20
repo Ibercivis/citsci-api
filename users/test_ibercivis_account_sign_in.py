@@ -206,18 +206,9 @@ class RefusingTheRequest(SignInCase):
         self.assertEqual(self.sign_in().status_code, 404)
 
 
-# Every claim the service puts in the ID token it issues to this application:
-# OpenID Connect's own, the identifier twice, the address. None says which
-# Google account, ORCID or password the person used to sign in there.
-CLAIMS_THE_SERVICE_SENDS = {
-    'iss', 'aud', 'azp', 'iat', 'exp', 'auth_time', 'jti', 'typ', 'sid', 'at_hash', 'acr',
-    'sub', 'voperson_id', 'email', 'email_verified',
-}
-
-
 class TheAccountItCreates(SignInCase):
-    def arrival(self):
-        response = self.sign_in()
+    def arrival(self, id_token=None):
+        response = self.sign_in(id_token)
         self.assertEqual(response.status_code, 200, response.content)
         return User.objects.get(email=SAYS['email'])
 
@@ -235,11 +226,17 @@ class TheAccountItCreates(SignInCase):
         self.assertEqual((account.provider, account.uid), ('ibercivis', IBERCIVIS_ACCOUNT_ID))
 
     def test_it_stores_nothing_about_how_the_person_signed_in_there(self):
-        user = self.arrival()
+        # Claims a mapper on the service could add tomorrow. What is stored is what this API
+        # names, not whatever the ID token happens to carry.
+        user = self.arrival(an_id_token(identity_provider='google', amr=['google'], name='Arrival'))
 
         [account] = SocialAccount.objects.filter(user=user)
-        self.assertEqual(list(account.extra_data), ['id_token'])
-        self.assertLessEqual(set(account.extra_data['id_token']), CLAIMS_THE_SERVICE_SENDS)
+        self.assertEqual(account.extra_data, {'id_token': {
+            'sub': IBERCIVIS_ACCOUNT_ID,
+            'voperson_id': IBERCIVIS_ACCOUNT_ID,
+            'email': SAYS['email'],
+            'email_verified': True,
+        }})
 
     def test_the_second_sign_in_lands_on_the_same_account_whatever_the_address_says(self):
         first = self.sign_in().json()['key']

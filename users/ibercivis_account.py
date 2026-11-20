@@ -9,6 +9,9 @@ neither does on its own, and nothing more:
 * dj-rest-auth redeems the code without a PKCE verifier. The Ibercivis service
   requires one, because the code was obtained in a browser: allauth's client
   accepts it, and `VerifierForwardingClient` passes it on.
+* allauth stores the ID token's payload as it arrives, every claim in it.
+  Here only the claims this API names are kept, so what is stored about a
+  person does not depend on what the service decides to put in the token.
 * dj-rest-auth also accepts a bare `access_token` instead of a code. Here only a
   code is accepted, so every sign-in goes through the token request this API
   makes itself, with its own secret, and the ID token it gets back has its
@@ -31,9 +34,25 @@ from rest_framework.exceptions import NotFound
 ADDRESS_IN_USE = _('User is already registered with this e-mail address.')
 
 
+# The ID token claims kept on the SocialAccount. `sub` is its uid, `email` and
+# `email_verified` make its address; `voperson_id` is the same identifier,
+# under the name the federation gives it. Nothing else is stored, and in
+# particular nothing that says how the person signed in at the service.
+KEPT_CLAIMS = ('sub', 'voperson_id', 'email', 'email_verified')
+
+
 class IbercivisAccountAdapter(OpenIDConnectOAuth2Adapter):
     def __init__(self, request):
         super().__init__(request, settings.IBERCIVIS_ACCOUNT_PROVIDER)
+
+    def complete_login(self, request, app, token, **kwargs):
+        # The uid and the address have already been read from the full payload by now.
+        login = super().complete_login(request, app, token, **kwargs)
+        id_token = login.account.extra_data.get('id_token', {})
+        login.account.extra_data = {
+            'id_token': {claim: id_token[claim] for claim in KEPT_CLAIMS if claim in id_token},
+        }
+        return login
 
 
 class VerifierForwardingClient(OAuth2Client):
